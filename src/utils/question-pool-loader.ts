@@ -4,7 +4,14 @@ import { QuestionPool } from '@/dto/question-dto';
 // Bạn chỉ cần thêm tên file vào đây khi có bộ câu hỏi mới
 const AVAILABLE_QUESTION_POOLS = [
     'scrum-master-1',
-    'demo'
+    'demo',
+    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-01',
+    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-02',
+    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-03',
+    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-04',
+    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-05',
+    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-06',
+    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-07',
 ];
 
 export const loadQuestionPools = async (): Promise<QuestionPool[]> => {
