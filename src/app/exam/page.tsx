@@ -196,11 +196,11 @@ export default function ExamPage() {
         </div>
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 py-8">
+      <div className="relative z-10 max-w-6xl mx-auto px-2 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Question Navigation */}
-          <div className="lg:col-span-1">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 sticky top-4">
+          <div className="lg:col-span-1 max-h-[calc(100vh-10rem)] overflow-y-auto">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-2 sticky top-4">
               <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <span className="text-lg">📋</span>
                 Danh sách câu hỏi
@@ -238,34 +238,41 @@ export default function ExamPage() {
 
           {/* Question Content */}
           <div className="lg:col-span-3">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-2">
               <div className="mb-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                     {currentQuestionIndex + 1}
                   </div>
+                <div className="flex items-center gap-3 mb-6">
+
                   <h2 className="text-xl font-bold text-gray-800 leading-relaxed">
                     {currentQuestion.content}
                   </h2>
                 </div>
                 
                 <div className="space-y-4">
-                  {currentQuestion.answers.map((answer) => (
-                    <label
-                      key={answer.id}
-                      className="flex items-start gap-4 p-5 bg-gradient-to-r from-gray-50 to-white border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:from-blue-50 hover:to-white cursor-pointer transition-all duration-300 group"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={userAnswers.includes(answer.id)}
-                        onChange={(e) => handleAnswerChange(answer.id, e.target.checked)}
-                        className="mt-1 w-5 h-5 text-blue-600 border-2 border-gray-400 rounded focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-white"
-                      />
-                      <span className="text-gray-700 font-medium group-hover:text-gray-900 transition-colors duration-200">
-                        {answer.content}
-                      </span>
-                    </label>
-                  ))}
+                  {currentQuestion.answers.map((answer) => {
+                    const isSelected = userAnswers.includes(answer.id);
+                    return (
+                      <div
+                        key={answer.id}
+                        onClick={() => handleAnswerChange(answer.id, !isSelected)}
+                        className={`flex items-start gap-4 p-4 rounded-xl cursor-pointer transition-all duration-300 group ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-400 shadow-lg'
+                            : 'bg-gradient-to-r from-gray-50 to-white border-2 border-gray-200 hover:border-blue-300 hover:from-blue-50 hover:to-white'
+                        }`}
+                      >
+                        <span className={`font-medium transition-colors duration-200 ${
+                          isSelected
+                            ? 'text-blue-900'
+                            : 'text-gray-700 group-hover:text-gray-900'
+                        }`}>
+                          {answer.content}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -278,7 +285,6 @@ export default function ExamPage() {
                 >
                   <span className="flex items-center gap-2">
                     <span>←</span>
-                    Câu trước
                   </span>
                 </button>
 
@@ -288,7 +294,6 @@ export default function ExamPage() {
                     className="px-8 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl hover:from-orange-600 hover:to-red-600 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
                   >
                     <span className="flex items-center gap-2">
-                      <span>📝</span>
                       Nộp bài
                     </span>
                   </button>
@@ -300,7 +305,6 @@ export default function ExamPage() {
                   className="px-6 py-3 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-xl hover:from-gray-300 hover:to-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100"
                 >
                   <span className="flex items-center gap-2">
-                    Câu sau
                     <span>→</span>
                   </span>
                 </button>
