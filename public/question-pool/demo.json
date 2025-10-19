@@ -2,6 +2,7 @@
     {
         "id": 1,
         "content": "Đây là câu hỏi demo số 1?",
+        "reason": "Đây là lý do cho câu trả lời",
         "answers": [
             {
                 "id": 1,
@@ -28,6 +29,7 @@
     {
         "id": 2,
         "content": "Đây là câu hỏi demo số 2?",
+        "reason": "Đây là lý do cho câu trả lời",
         "answers": [
             {
                 "id": 1,
@@ -54,6 +56,7 @@
     {
         "id": 3,
         "content": "Đây là câu hỏi demo số 3?",
+        "reason": "Đây là lý do cho câu trả lời",
         "answers": [
             {
                 "id": 1,
@@ -80,6 +83,7 @@
     {
         "id": 4,
         "content": "Đây là câu hỏi demo số 4?",
+        "reason": "Đây là lý do cho câu trả lời",
         "answers": [
             {
                 "id": 1,
@@ -106,6 +110,7 @@
     {
         "id": 5,
         "content": "Đây là câu hỏi demo số 5 (nhiều đáp án đúng)?",
+        "reason": "Đây là lý do cho câu trả lời",
         "answers": [
             {
                 "id": 1,
