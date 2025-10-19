@@ -12,6 +12,13 @@ const AVAILABLE_QUESTION_POOLS = [
     'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-05',
     'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-06',
     'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-07',
+    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-01',
+    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-02',
+    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-03',
+    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-04',
+    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-05',
+    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-06',
+
 ];
 
 export const loadQuestionPools = async (): Promise<QuestionPool[]> => {
