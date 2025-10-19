@@ -10,8 +10,8 @@ export default function Home() {
   const router = useRouter();
   const [questionPools, setQuestionPools] = useState<QuestionPool[]>([]);
   const [selectedPool, setSelectedPool] = useState<string>('');
-  const [questionCount, setQuestionCount] = useState<number>(0);
-  const [timeLimit, setTimeLimit] = useState<number>(0);
+  const [questionCount, setQuestionCount] = useState<number>(10);
+  const [timeLimit, setTimeLimit] = useState<number>(15);
   const [loading, setLoading] = useState(true);
   const [showStats, setShowStats] = useState(false);
 
@@ -26,8 +26,8 @@ export default function Home() {
       if (pools.length > 0) {
         setQuestionPools(pools);
         setSelectedPool(pools[0].filename);
-        setQuestionCount(pools[0].questions.length);
-        setTimeLimit(pools[0].questions.length);
+        setQuestionCount(Math.min(10, pools[0].questions.length));
+        setTimeLimit(15);
       } else {
         console.error('No question pools found');
       }
@@ -99,7 +99,14 @@ export default function Home() {
                 <div className="relative">
                   <select
                     value={selectedPool}
-                    onChange={(e) => setSelectedPool(e.target.value)}
+                    onChange={(e) => {
+                      const newPool = e.target.value;
+                      setSelectedPool(newPool);
+                      const pool = questionPools.find(p => p.filename === newPool);
+                      const poolSize = pool ? pool.questions.length : 0;
+                      setQuestionCount(Math.min(10, poolSize));
+                      setTimeLimit(15);
+                    }}
                     className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-300 appearance-none cursor-pointer text-gray-800"
                   >
                     {questionPools.map((pool) => (
@@ -114,6 +121,9 @@ export default function Home() {
                     </svg>
                   </div>
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Bộ đề hiện có: {questionPools.find(p => p.filename === selectedPool)?.questions.length || 0} câu hỏi
+                </p>
               </div>
 
               {/* Question Count */}
@@ -127,7 +137,12 @@ export default function Home() {
                   min="1"
                   max={questionPools.find(p => p.filename === selectedPool)?.questions.length || 0}
                   value={questionCount}
-                  onChange={(e) => setQuestionCount(parseInt(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    const max = questionPools.find(p => p.filename === selectedPool)?.questions.length || 0;
+                    const clamped = Math.max(1, Math.min(max, val));
+                    setQuestionCount(clamped);
+                  }}
                   className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-300 text-gray-800 placeholder-gray-500"
                   placeholder="Nhập số câu hỏi"
                 />
