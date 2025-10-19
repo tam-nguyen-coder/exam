@@ -148,7 +148,7 @@ export default function ResultPage() {
       <div className="relative z-10 py-8">
         <div className="max-w-4xl mx-auto px-4">
           {/* Header */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 mb-8">
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 mb-4">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl mb-6 shadow-lg">
                 <span className="text-3xl">🎉</span>
@@ -197,8 +197,7 @@ export default function ResultPage() {
                   className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
                 >
                   <span className="flex items-center gap-2">
-                    <span>📖</span>
-                    {showAnswers ? 'Ẩn đáp án' : 'Xem đáp án chi tiết'}
+                    {showAnswers ? 'Ẩn đáp án' : 'Xem lại'}
                   </span>
                 </button>
                 <button
@@ -206,7 +205,6 @@ export default function ResultPage() {
                   className="px-8 py-4 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
                 >
                   <span className="flex items-center gap-2">
-                    <span>🔄</span>
                     Thi lại
                   </span>
                 </button>
@@ -220,11 +218,11 @@ export default function ResultPage() {
               {questionResults.map((result, index) => (
                 <div
                   key={result.question.id}
-                  className={`bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 ${
+                  className={`bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-4 ${
                     result.isCorrect ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-red-500'
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-6">
+                  <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg ${
                         result.isCorrect 
@@ -233,9 +231,6 @@ export default function ResultPage() {
                       }`}>
                         {index + 1}
                       </div>
-                      <h3 className="text-xl font-bold text-gray-800 leading-relaxed">
-                        {result.question.content}
-                      </h3>
                     </div>
                     <div className={`px-4 py-2 rounded-xl text-sm font-bold ${
                       result.isCorrect 
@@ -245,6 +240,10 @@ export default function ResultPage() {
                       {result.isCorrect ? '✓ Đúng' : '✗ Sai'}
                     </div>
                   </div>
+
+                  <h3 className="text-xl font-bold text-gray-800 leading-relaxed mb-2">
+                        {result.question.content}
+                  </h3>
 
                   <div className="space-y-3">
                     {result.question.answers.map((answer) => {
