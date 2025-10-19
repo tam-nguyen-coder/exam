@@ -37,3 +37,12 @@ export interface QuestionPool {
     filename: string;
     questions: QuestionDto[];
 }
+
+export interface QuestionStats {
+    question: QuestionDto;
+    countTrue: number;
+    countFalse: number;
+    totalAttempts: number;
+    accuracy: number; // percentage
+    score: number; // countTrue - countFalse
+}

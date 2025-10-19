@@ -32,14 +32,7 @@ const AVAILABLE_QUESTION_POOLS = [
 ];
 ```
 
-2. **Thêm tên hiển thị vào hàm `generateDisplayName`:**
-```typescript
-const nameMap: { [key: string]: string } = {
-  'scrum-master-1': 'Scrum Master Certification (Full)',
-  'demo': 'Demo Questions (5 câu)',
-  'ten-file-moi': 'Tên hiển thị đẹp cho bộ câu hỏi'  // ← Thêm vào đây
-};
-```
+2. **Không cần thêm tên hiển thị** - hệ thống sẽ tự động lấy tên file làm tên hiển thị
 
 ### Bước 3: Restart server
 ```bash
@@ -111,13 +104,9 @@ const AVAILABLE_QUESTION_POOLS = [
   'demo',
   'toan-hoc'  // ← Thêm vào đây
 ];
-
-const nameMap: { [key: string]: string } = {
-  'scrum-master-1': 'Scrum Master Certification (Full)',
-  'demo': 'Demo Questions (5 câu)',
-  'toan-hoc': 'Toán Học Cơ Bản'  // ← Thêm vào đây
-};
 ```
+
+**Lưu ý**: Tên hiển thị sẽ tự động lấy từ tên file (ví dụ: `toan-hoc` sẽ hiển thị là `toan-hoc`)
 
 ## 🎯 Lưu ý
 
