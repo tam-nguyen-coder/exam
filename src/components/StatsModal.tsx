@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getUserAnswers } from '@/utils/storage';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface StatsModalProps {
   isOpen: boolean;
@@ -9,70 +9,87 @@ interface StatsModalProps {
   questionPool: string;
 }
 
-export default function StatsModal({ isOpen, onClose, questionPool }: StatsModalProps) {
-  const [stats, setStats] = useState<{
+interface StatsData {
+  questionStats: Array<{
+    questionId: number;
+    countTrue: number;
+    countFalse: number;
+  }>;
+  overallStats: {
     totalAttempts: number;
-    correctAnswers: number;
-    incorrectAnswers: number;
+    totalCorrect: number;
+    totalIncorrect: number;
     accuracy: number;
-    questionStats: Array<{
-      questionId: number;
-      countTrue: number;
-      countFalse: number;
-      accuracy: number;
-    }>;
-  } | null>(null);
+    totalSessions: number;
+  };
+  sessions: Array<{
+    id: string;
+    score: number;
+    totalQuestions: number;
+    createdAt: string;
+  }>;
+}
+
+export default function StatsModal({ isOpen, onClose, questionPool }: StatsModalProps) {
+  const { user, token } = useAuth();
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && user && token && questionPool) {
       loadStats();
     }
-  }, [isOpen, questionPool]);
+  }, [isOpen, user, token, questionPool]);
 
-  const loadStats = () => {
-    const userAnswers = getUserAnswers(questionPool);
+  const loadStats = async () => {
+    if (!token) return;
     
-    const totalAttempts = userAnswers.reduce((sum, answer) => sum + answer.countTrue + answer.countFalse, 0);
-    const correctAnswers = userAnswers.reduce((sum, answer) => sum + answer.countTrue, 0);
-    const incorrectAnswers = userAnswers.reduce((sum, answer) => sum + answer.countFalse, 0);
-    const accuracy = totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/exam/stats?questionPool=${questionPool}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-    const questionStats = userAnswers.map(answer => ({
-      questionId: answer.questionId,
-      countTrue: answer.countTrue,
-      countFalse: answer.countFalse,
-      accuracy: (answer.countTrue + answer.countFalse) > 0 
-        ? Math.round((answer.countTrue / (answer.countTrue + answer.countFalse)) * 100)
-        : 0
-    })).sort((a, b) => a.accuracy - b.accuracy); // Sort by accuracy (worst first)
-
-    setStats({
-      totalAttempts,
-      correctAnswers,
-      incorrectAnswers,
-      accuracy,
-      questionStats
-    });
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      } else {
+        setStats(null);
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error);
+      setStats(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (!isOpen || !stats) return null;
+  const getAccuracyColor = (accuracy: number) => {
+    if (accuracy >= 80) return 'text-green-600';
+    if (accuracy >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getScoreColor = (score: number, total: number) => {
+    const percentage = (score / total) * 100;
+    if (percentage >= 80) return 'text-green-600';
+    if (percentage >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white/90 backdrop-blur-md rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20">
-        <div className="p-8">
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <span className="text-2xl">📊</span>
-              </div>
-              <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                Thống kê lịch sử thi
-              </h2>
-            </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">Thống kê nhanh</h2>
             <button
               onClick={onClose}
-              className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center text-gray-600 hover:text-gray-800 transition-all duration-200"
+              className="text-gray-400 hover:text-gray-600 transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -80,79 +97,124 @@ export default function StatsModal({ isOpen, onClose, questionPool }: StatsModal
             </button>
           </div>
 
-          {/* Overall Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl text-center border border-blue-200 shadow-lg">
-              <div className="text-3xl font-bold text-blue-600 mb-1">{stats.totalAttempts}</div>
-              <div className="text-sm text-blue-800 font-medium">Tổng lần thi</div>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl text-center border border-green-200 shadow-lg">
-              <div className="text-3xl font-bold text-green-600 mb-1">{stats.correctAnswers}</div>
-              <div className="text-sm text-green-800 font-medium">Câu đúng</div>
-            </div>
-            <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-2xl text-center border border-red-200 shadow-lg">
-              <div className="text-3xl font-bold text-red-600 mb-1">{stats.incorrectAnswers}</div>
-              <div className="text-sm text-red-800 font-medium">Câu sai</div>
-            </div>
-            <div className={`p-6 rounded-2xl text-center border shadow-lg ${
-              stats.accuracy >= 80 ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-200' : 
-              stats.accuracy >= 60 ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200' : 'bg-gradient-to-br from-red-50 to-red-100 border-red-200'
-            }`}>
-              <div className={`text-3xl font-bold mb-1 ${
-                stats.accuracy >= 80 ? 'text-green-600' : 
-                stats.accuracy >= 60 ? 'text-yellow-600' : 'text-red-600'
-              }`}>
-                {stats.accuracy}%
-              </div>
-              <div className="text-sm text-gray-800 font-medium">Độ chính xác</div>
-            </div>
-          </div>
-
-          {/* Question-wise Stats */}
-          <div>
-            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-              <span className="text-2xl">📈</span>
-              Thống kê theo câu hỏi (sắp xếp từ khó nhất)
-            </h3>
-            <div className="space-y-3 max-h-60 overflow-y-auto">
-              {stats.questionStats.map((question, index) => (
-                <div
-                  key={question.questionId}
-                  className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                      {question.questionId}
-                    </div>
-                    <div className="flex gap-3 text-sm">
-                      <span className="bg-gradient-to-r from-green-100 to-green-200 text-green-700 px-3 py-1 rounded-lg font-medium border border-green-300">
-                        ✓ {question.countTrue}
-                      </span>
-                      <span className="bg-gradient-to-r from-red-100 to-red-200 text-red-700 px-3 py-1 rounded-lg font-medium border border-red-300">
-                        ✗ {question.countFalse}
-                      </span>
-                    </div>
+          ) : stats ? (
+            <div className="space-y-6">
+              {/* Overall Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-blue-600">{stats.overallStats.totalSessions}</div>
+                  <div className="text-sm text-blue-800">Lần thi</div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-green-600">{stats.overallStats.totalCorrect}</div>
+                  <div className="text-sm text-green-800">Câu đúng</div>
+                </div>
+                <div className="bg-red-50 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-red-600">{stats.overallStats.totalIncorrect}</div>
+                  <div className="text-sm text-red-800">Câu sai</div>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg text-center">
+                  <div className={`text-2xl font-bold ${getAccuracyColor(stats.overallStats.accuracy)}`}>
+                    {stats.overallStats.accuracy.toFixed(1)}%
                   </div>
-                  <div className={`text-lg font-bold px-3 py-1 rounded-lg ${
-                    question.accuracy >= 80 ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-700 border border-green-300' : 
-                    question.accuracy >= 60 ? 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-700 border border-yellow-300' : 'bg-gradient-to-r from-red-100 to-red-200 text-red-700 border border-red-300'
-                  }`}>
-                    {question.accuracy}%
+                  <div className="text-sm text-purple-800">Độ chính xác</div>
+                </div>
+              </div>
+
+              {/* Recent Sessions */}
+              {stats.sessions.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Lần thi gần đây</h3>
+                  <div className="space-y-2">
+                    {stats.sessions.slice(0, 3).map((session) => (
+                      <div key={session.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-800">
+                            {new Date(session.createdAt).toLocaleDateString('vi-VN')}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-bold ${getScoreColor(session.score, session.totalQuestions)}`}>
+                            {session.score}/{session.totalQuestions}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {Math.round((session.score / session.totalQuestions) * 100)}%
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              )}
 
-          <div className="mt-8 pt-6 border-t border-gray-200">
+              {/* Question Performance */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Hiệu suất câu hỏi</h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {stats.questionStats
+                    .sort((a, b) => {
+                      const aScore = a.countTrue - a.countFalse;
+                      const bScore = b.countTrue - b.countFalse;
+                      return aScore - bScore; // Sort by worst performance first
+                    })
+                    .slice(0, 10)
+                    .map((stat) => {
+                      const totalAttempts = stat.countTrue + stat.countFalse;
+                      const accuracy = totalAttempts > 0 ? (stat.countTrue / totalAttempts) * 100 : 0;
+                      const score = stat.countTrue - stat.countFalse;
+
+                      return (
+                        <div
+                          key={stat.questionId}
+                          className={`p-3 rounded-lg border-2 ${
+                            score < 0
+                              ? 'bg-red-50 border-red-200'
+                              : score === 0
+                              ? 'bg-yellow-50 border-yellow-200'
+                              : 'bg-green-50 border-green-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold ${
+                                score < 0 ? 'bg-red-500' : score === 0 ? 'bg-yellow-500' : 'bg-green-500'
+                              }`}>
+                                {stat.questionId}
+                              </div>
+                              <span className="text-sm text-gray-600">
+                                Câu {stat.questionId}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm">
+                              <span className="text-green-600">✓ {stat.countTrue}</span>
+                              <span className="text-red-600">✗ {stat.countFalse}</span>
+                              <span className={`font-medium ${getAccuracyColor(accuracy)}`}>
+                                {accuracy.toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-600">Chưa có dữ liệu thống kê</p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
             <button
               onClick={onClose}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
             >
-              <span className="flex items-center justify-center gap-2">
-                <span>✓</span>
-                Đóng
-              </span>
+              Đóng
             </button>
           </div>
         </div>

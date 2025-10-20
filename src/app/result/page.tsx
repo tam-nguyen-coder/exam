@@ -2,111 +2,109 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ExamSession, QuestionDto, AnswerDto } from '@/dto/question-dto';
+import { QuestionDto } from '@/dto/question-dto';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface ExamSession {
+  id: string;
+  questionPool: string;
+  questionCount: number;
+  timeLimit: number;
+  startTime: string;
+  endTime: string;
+  score: number;
+  totalQuestions: number;
+  answers: UserAnswer[];
+}
+
+interface UserAnswer {
+  id: string;
+  questionId: number;
+  answerIds: number[];
+  isCorrect: boolean;
+}
 
 interface QuestionResult {
   question: QuestionDto;
   userAnswers: number[];
   correctAnswers: number[];
   isCorrect: boolean;
-  timeSpent?: number;
 }
 
 export default function ResultPage() {
   const router = useRouter();
+  const { user, token } = useAuth();
   const [examSession, setExamSession] = useState<ExamSession | null>(null);
   const [questionResults, setQuestionResults] = useState<QuestionResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAnswers, setShowAnswers] = useState(false);
 
   useEffect(() => {
+    if (!user || !token) {
+      router.push('/');
+      return;
+    }
     loadExamResults();
-  }, []);
+  }, [user, token, router]);
 
-  const loadExamResults = () => {
+  const loadExamResults = async () => {
     try {
-      const resultsData = sessionStorage.getItem('examResults');
-      if (!resultsData) {
+      const resultData = sessionStorage.getItem('examResult');
+      if (!resultData) {
         router.push('/');
         return;
       }
 
-      const session: ExamSession = JSON.parse(resultsData);
+      const session: ExamSession = JSON.parse(resultData);
       setExamSession(session);
 
-      // Calculate results for each question
-      const results: QuestionResult[] = session.questions.map(question => {
-        const userAnswers = session.userAnswers[question.id] || [];
+      // Load questions from the pool
+      const questionsResponse = await fetch(`/question-pool/${session.questionPool}.json`);
+      if (!questionsResponse.ok) {
+        throw new Error('Failed to load questions');
+      }
+      const allQuestions: QuestionDto[] = await questionsResponse.json();
+
+      // Create question results
+      const results: QuestionResult[] = session.answers.map(userAnswer => {
+        const question = allQuestions.find(q => q.id === userAnswer.questionId);
+        if (!question) return null;
+
         const correctAnswers = question.answers
           .filter(answer => answer.correct)
           .map(answer => answer.id);
-        
-        const isCorrect = userAnswers.length === correctAnswers.length &&
-          userAnswers.every(answerId => correctAnswers.includes(answerId));
 
         return {
           question,
-          userAnswers,
+          userAnswers: userAnswer.answerIds,
           correctAnswers,
-          isCorrect
+          isCorrect: userAnswer.isCorrect
         };
-      });
+      }).filter(Boolean) as QuestionResult[];
 
       setQuestionResults(results);
       setLoading(false);
     } catch (error) {
       console.error('Error loading exam results:', error);
+      alert('Có lỗi xảy ra khi tải kết quả bài thi');
       router.push('/');
     }
   };
 
-  const calculateScore = () => {
-    const correctCount = questionResults.filter(result => result.isCorrect).length;
-    const totalCount = questionResults.length;
-    const percentage = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
-    
-    return { correctCount, totalCount, percentage };
-  };
-
-  const getScoreColor = (percentage: number) => {
+  const getScoreColor = (score: number, total: number) => {
+    const percentage = (score / total) * 100;
     if (percentage >= 80) return 'text-green-600';
     if (percentage >= 60) return 'text-yellow-600';
     return 'text-red-600';
   };
 
-  const getScoreBgColor = (percentage: number) => {
-    if (percentage >= 80) return 'bg-green-100';
-    if (percentage >= 60) return 'bg-yellow-100';
-    return 'bg-red-100';
-  };
-
-  const formatTime = (milliseconds: number) => {
-    const minutes = Math.floor(milliseconds / 60000);
-    const seconds = Math.floor((milliseconds % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const getAnswerStatus = (answerId: number, questionResult: QuestionResult) => {
-    const isUserSelected = questionResult.userAnswers.includes(answerId);
-    const isCorrect = questionResult.correctAnswers.includes(answerId);
-    
-    if (isCorrect && isUserSelected) return 'correct-selected';
-    if (isCorrect && !isUserSelected) return 'correct-not-selected';
-    if (!isCorrect && isUserSelected) return 'incorrect-selected';
-    return 'neutral';
-  };
-
-  const getAnswerStatusClass = (status: string) => {
-    switch (status) {
-      case 'correct-selected':
-        return 'bg-green-100 border-green-300 text-green-800';
-      case 'correct-not-selected':
-        return 'bg-green-50 border-green-200 text-green-700';
-      case 'incorrect-selected':
-        return 'bg-red-100 border-red-300 text-red-800';
-      default:
-        return 'bg-gray-50 border-gray-200 text-gray-700';
-    }
+  const getScoreMessage = (score: number, total: number) => {
+    const percentage = (score / total) * 100;
+    if (percentage >= 90) return 'Xuất sắc! 🎉';
+    if (percentage >= 80) return 'Tốt! 👍';
+    if (percentage >= 70) return 'Khá! 👌';
+    if (percentage >= 60) return 'Đạt! ✅';
+    return 'Cần cải thiện! 📚';
   };
 
   if (loading) {
@@ -117,14 +115,14 @@ export default function ResultPage() {
     );
   }
 
-  if (!examSession || !questionResults.length) {
+  if (!examSession || questionResults.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Không tìm thấy kết quả</h2>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Không tìm thấy kết quả bài thi</h1>
           <button
             onClick={() => router.push('/')}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Quay về trang chủ
           </button>
@@ -133,154 +131,139 @@ export default function ResultPage() {
     );
   }
 
-  const { correctCount, totalCount, percentage } = calculateScore();
-  const timeSpent = examSession.endTime && examSession.startTime 
-    ? examSession.endTime - examSession.startTime 
-    : 0;
+  const percentage = Math.round((examSession.score / examSession.totalQuestions) * 100);
+  const timeSpent = new Date(examSession.endTime).getTime() - new Date(examSession.startTime).getTime();
+  const minutesSpent = Math.round(timeSpent / 60000);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-40" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-      }}></div>
-      
-      <div className="relative z-10 py-8">
-        <div className="max-w-4xl mx-auto px-4">
-          {/* Header */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 mb-4">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl mb-6 shadow-lg">
-                <span className="text-3xl">🎉</span>
-              </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
-                Kết quả bài thi
-              </h1>
-              <p className="text-gray-600 mb-8">
-                {examSession.config.questionPool} - {examSession.endTime ? new Date(examSession.endTime).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN')}
-              </p>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-blue-600 rounded-2xl mb-4 shadow-lg">
+            <span className="text-3xl">🎯</span>
+          </div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+            Kết quả bài thi
+          </h1>
+          <p className="text-gray-600">
+            Bộ đề: {examSession.questionPool}
+          </p>
+        </div>
 
-              {/* Score Display */}
-              <div className={`inline-flex items-center justify-center w-40 h-40 rounded-full ${getScoreBgColor(percentage)} mb-8 shadow-2xl`}>
-                <div className="text-center">
-                  <div className={`text-5xl font-bold ${getScoreColor(percentage)}`}>
-                    {percentage}%
-                  </div>
-                  <div className="text-sm text-gray-600 font-medium">
-                    {correctCount}/{totalCount}
-                  </div>
-                </div>
+        {/* Score Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+          <div className="text-center">
+            <div className={`text-6xl font-bold mb-4 ${getScoreColor(examSession.score, examSession.totalQuestions)}`}>
+              {examSession.score}/{examSession.totalQuestions}
+            </div>
+            <div className="text-2xl font-semibold text-gray-700 mb-2">
+              {percentage}%
+            </div>
+            <div className="text-lg text-gray-600 mb-6">
+              {getScoreMessage(examSession.score, examSession.totalQuestions)}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="font-semibold text-blue-800">Thời gian làm bài</div>
+                <div className="text-blue-600">{minutesSpent} phút</div>
               </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl border border-blue-200 shadow-lg">
-                  <div className="text-3xl font-bold text-blue-600 mb-1">{correctCount}</div>
-                  <div className="text-sm text-blue-800 font-medium">Câu đúng</div>
-                </div>
-                <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-2xl border border-red-200 shadow-lg">
-                  <div className="text-3xl font-bold text-red-600 mb-1">{totalCount - correctCount}</div>
-                  <div className="text-sm text-red-800 font-medium">Câu sai</div>
-                </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl border border-green-200 shadow-lg">
-                  <div className="text-3xl font-bold text-green-600 mb-1">
-                    {timeSpent ? formatTime(timeSpent) : 'N/A'}
-                  </div>
-                  <div className="text-sm text-green-800 font-medium">Thời gian</div>
-                </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <div className="font-semibold text-green-800">Câu đúng</div>
+                <div className="text-green-600">{examSession.score} câu</div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={() => setShowAnswers(!showAnswers)}
-                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-                >
-                  <span className="flex items-center gap-2">
-                    {showAnswers ? 'Ẩn đáp án' : 'Xem lại'}
-                  </span>
-                </button>
-                <button
-                  onClick={() => router.push('/')}
-                  className="px-8 py-4 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-                >
-                  <span className="flex items-center gap-2">
-                    Thi lại
-                  </span>
-                </button>
+              <div className="bg-red-50 p-4 rounded-lg">
+                <div className="font-semibold text-red-800">Câu sai</div>
+                <div className="text-red-600">{examSession.totalQuestions - examSession.score} câu</div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Detailed Results */}
-          {showAnswers && (
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+          <button
+            onClick={() => setShowAnswers(!showAnswers)}
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+          >
+            {showAnswers ? 'Ẩn đáp án' : 'Xem đáp án chi tiết'}
+          </button>
+          <button
+            onClick={() => router.push('/')}
+            className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors"
+          >
+            Làm bài thi mới
+          </button>
+          <button
+            onClick={() => router.push('/stats')}
+            className="px-6 py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors"
+          >
+            Xem thống kê
+          </button>
+        </div>
+
+        {/* Detailed Answers */}
+        {showAnswers && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Chi tiết đáp án</h2>
             <div className="space-y-6">
               {questionResults.map((result, index) => (
                 <div
                   key={result.question.id}
-                  className={`bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-4 ${
-                    result.isCorrect ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-red-500'
+                  className={`p-6 rounded-xl border-2 ${
+                    result.isCorrect
+                      ? 'bg-green-50 border-green-200'
+                      : 'bg-red-50 border-red-200'
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg ${
-                        result.isCorrect 
-                          ? 'bg-gradient-to-br from-green-500 to-green-600' 
-                          : 'bg-gradient-to-br from-red-500 to-red-600'
-                      }`}>
-                        {index + 1}
+                  <div className="flex items-start gap-4">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
+                      result.isCorrect ? 'bg-green-500' : 'bg-red-500'
+                    }`}>
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-800 mb-3">
+                        {result.question.content}
+                      </h3>
+                      
+                      <div className="space-y-2">
+                        {result.question.answers.map((answer) => {
+                          const isUserAnswer = result.userAnswers.includes(answer.id);
+                          const isCorrectAnswer = result.correctAnswers.includes(answer.id);
+                          
+                          let answerClass = 'p-3 rounded-lg border-2 ';
+                          if (isCorrectAnswer) {
+                            answerClass += 'bg-green-100 border-green-300 text-green-800';
+                          } else if (isUserAnswer && !isCorrectAnswer) {
+                            answerClass += 'bg-red-100 border-red-300 text-red-800';
+                          } else {
+                            answerClass += 'bg-gray-50 border-gray-200 text-gray-700';
+                          }
+                          
+                          return (
+                            <div key={answer.id} className={answerClass}>
+                              <div className="flex items-center gap-2">
+                                {isCorrectAnswer && (
+                                  <span className="text-green-600">✓</span>
+                                )}
+                                {isUserAnswer && !isCorrectAnswer && (
+                                  <span className="text-red-600">✗</span>
+                                )}
+                                <span>{answer.content}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                    <div className={`px-4 py-2 rounded-xl text-sm font-bold ${
-                      result.isCorrect 
-                        ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-800 border border-green-300' 
-                        : 'bg-gradient-to-r from-red-100 to-red-200 text-red-800 border border-red-300'
-                    }`}>
-                      {result.isCorrect ? '✓ Đúng' : '✗ Sai'}
-                    </div>
                   </div>
-
-                  <h3 className="text-xl font-bold text-gray-800 leading-relaxed mb-2">
-                        {result.question.content}
-                  </h3>
-
-                  <div className="space-y-3">
-                    {result.question.answers.map((answer) => {
-                      const status = getAnswerStatus(answer.id, result);
-                      return (
-                        <div
-                          key={answer.id}
-                          className={`p-4 rounded-xl border-2 transition-all duration-200 ${getAnswerStatusClass(status)}`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <span className="text-lg font-bold">
-                              {status === 'correct-selected' && '✅'}
-                              {status === 'correct-not-selected' && '✓'}
-                              {status === 'incorrect-selected' && '❌'}
-                              {status === 'neutral' && '○'}
-                            </span>
-                            <span className="font-medium">{answer.content}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {result.question.reason && (
-                    <div className="mt-6 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-                      <h4 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
-                        <span>💡</span>
-                        Giải thích
-                      </h4>
-                      <p className="text-blue-700">{result.question.reason}</p>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

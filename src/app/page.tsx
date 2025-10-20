@@ -4,16 +4,22 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ExamConfig, QuestionPool } from '@/dto/question-dto';
 import StatsModal from '@/components/StatsModal';
+import LoginModal from '@/components/LoginModal';
+import RegisterModal from '@/components/RegisterModal';
 import { loadQuestionPools } from '@/utils/question-pool-loader';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const router = useRouter();
+  const { user, token, loading: authLoading } = useAuth();
   const [questionPools, setQuestionPools] = useState<QuestionPool[]>([]);
   const [selectedPool, setSelectedPool] = useState<string>('');
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [timeLimit, setTimeLimit] = useState<number>(15);
   const [loading, setLoading] = useState(true);
   const [showStats, setShowStats] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
 
   useEffect(() => {
     loadQuestionPoolsData();
@@ -38,25 +44,47 @@ export default function Home() {
     }
   };
 
-  const handleStartExam = () => {
+  const handleStartExam = async () => {
+    if (!user || !token) {
+      setShowLogin(true);
+      return;
+    }
+
     if (!selectedPool || questionCount <= 0 || timeLimit <= 0) {
       alert('Vui lòng điền đầy đủ thông tin');
       return;
     }
 
-    const config: ExamConfig = {
-      questionPool: selectedPool,
-      questionCount,
-      timeLimit
-    };
+    try {
+      // Create exam session
+      const response = await fetch('/api/exam/sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          questionPool: selectedPool,
+          questionCount,
+          timeLimit
+        })
+      });
 
-    // Store config in sessionStorage for the exam session
-    sessionStorage.setItem('examConfig', JSON.stringify(config));
-    
-    router.push('/exam');
+      if (response.ok) {
+        const { session } = await response.json();
+        // Store session ID in sessionStorage for the exam
+        sessionStorage.setItem('examSessionId', session.id);
+        router.push('/exam');
+      } else {
+        alert('Có lỗi xảy ra khi tạo bài thi');
+      }
+    } catch (error) {
+      console.error('Error creating exam session:', error);
+      alert('Có lỗi xảy ra khi tạo bài thi');
+    }
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -86,6 +114,35 @@ export default function Home() {
               <p className="text-gray-600 text-sm">
                 Chọn cấu hình và bắt đầu bài thi của bạn
               </p>
+              
+              {/* User Info */}
+              {user ? (
+                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-green-800 text-sm">
+                    👋 Xin chào, {user.name || user.email}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-yellow-800 text-sm mb-2">
+                    ⚠️ Vui lòng đăng nhập để bắt đầu thi
+                  </p>
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      onClick={() => setShowLogin(true)}
+                      className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Đăng nhập
+                    </button>
+                    <button
+                      onClick={() => setShowRegister(true)}
+                      className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      Đăng ký
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Form */}
@@ -234,6 +291,25 @@ export default function Home() {
         isOpen={showStats}
         onClose={() => setShowStats(false)}
         questionPool={selectedPool}
+      />
+
+      {/* Auth Modals */}
+      <LoginModal
+        isOpen={showLogin}
+        onClose={() => setShowLogin(false)}
+        onSwitchToRegister={() => {
+          setShowLogin(false);
+          setShowRegister(true);
+        }}
+      />
+
+      <RegisterModal
+        isOpen={showRegister}
+        onClose={() => setShowRegister(false)}
+        onSwitchToLogin={() => {
+          setShowRegister(false);
+          setShowLogin(true);
+        }}
       />
     </div>
   );

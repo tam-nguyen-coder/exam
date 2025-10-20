@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  examSessions  ExamSession[]
+  questionStats QuestionStats[]
+
+  @@map("users")
+}
+
+model ExamSession {
+  id             String   @id @default(cuid())
+  userId         String
+  questionPool   String
+  questionCount  Int
+  timeLimit      Int      // in minutes
+  startTime      DateTime
+  endTime        DateTime?
+  score          Int?
+  totalQuestions Int?
+  createdAt      DateTime @default(now())
+
+  // Relations
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers  UserAnswer[]
+
+  @@map("exam_sessions")
+}
+
+model UserAnswer {
+  id             String   @id @default(cuid())
+  examSessionId  String
+  questionId     Int
+  answerIds      Int[]    // JSON array of selected answer IDs
+  isCorrect      Boolean
+  createdAt      DateTime @default(now())
+
+  // Relations
+  examSession ExamSession @relation(fields: [examSessionId], references: [id], onDelete: Cascade)
+
+  @@map("user_answers")
+}
+
+model QuestionStats {
+  id               String   @id @default(cuid())
+  userId           String
+  questionPool     String
+  questionId       Int
+  countTrue        Int      @default(0)
+  countFalse       Int      @default(0)
+  lastAttemptedAt  DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Composite unique index
+  @@unique([userId, questionPool, questionId])
+  @@map("question_stats")
+}

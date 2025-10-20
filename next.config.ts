@@ -1,14 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
-  trailingSlash: true,
+  // Remove static export config for Vercel deployment
   images: {
     unoptimized: true
-  },
-  // Disable server-side features for static export
-  experimental: {
-    esmExternals: false
   }
 };
 

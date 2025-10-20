@@ -60,6 +60,11 @@ export const createTimer = (
         stop,
         pause,
         resume,
-        getTimeLeft: () => timeLeft
+        getTimeLeft: () => timeLeft,
+        getState: () => ({
+            timeLeft,
+            isRunning: timeLeft > 0,
+            isWarning: timeLeft <= 60
+        })
     };
 };

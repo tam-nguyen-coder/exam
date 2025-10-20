@@ -2,126 +2,159 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ExamConfig, ExamSession, QuestionDto } from '@/dto/question-dto';
+import { QuestionDto } from '@/dto/question-dto';
 import { selectQuestions } from '@/utils/question-selection';
 import { createTimer, formatTime, TimerState } from '@/utils/timer';
-import { saveUserAnswer } from '@/utils/storage';
 import { getCurrentTimestamp } from '@/utils/random';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface ExamSession {
+  id: string;
+  questionPool: string;
+  questionCount: number;
+  timeLimit: number;
+  startTime: string;
+  endTime?: string;
+}
 
 export default function ExamPage() {
   const router = useRouter();
+  const { user, token } = useAuth();
   const [examSession, setExamSession] = useState<ExamSession | null>(null);
+  const [questions, setQuestions] = useState<QuestionDto[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [userAnswers, setUserAnswers] = useState<Record<number, number[]>>({});
   const [timerState, setTimerState] = useState<TimerState>({
     timeLeft: 0,
     isRunning: false,
     isWarning: false
   });
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (!user || !token) {
+      router.push('/');
+      return;
+    }
     initializeExam();
-  }, []);
+  }, [user, token, router]);
 
   const initializeExam = async () => {
     try {
-      const configData = sessionStorage.getItem('examConfig');
-      if (!configData) {
+      const sessionId = sessionStorage.getItem('examSessionId');
+      if (!sessionId) {
         router.push('/');
         return;
       }
 
-      const config: ExamConfig = JSON.parse(configData);
-      
-      // Load questions from the selected pool
-      const response = await fetch(`/question-pool/${config.questionPool}.json`);
+      // Get exam session from database
+      const response = await fetch(`/api/exam/sessions/${sessionId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
       if (!response.ok) {
-        throw new Error(`Failed to load questions: ${response.statusText}`);
+        throw new Error('Failed to load exam session');
       }
-      const allQuestions: QuestionDto[] = await response.json();
+
+      const { session } = await response.json();
+      setExamSession(session);
+
+      // Load questions from the selected pool
+      const questionsResponse = await fetch(`/question-pool/${session.questionPool}.json`);
+      if (!questionsResponse.ok) {
+        throw new Error(`Failed to load questions: ${questionsResponse.statusText}`);
+      }
+      const allQuestions: QuestionDto[] = await questionsResponse.json();
       
       // Select questions using the algorithm
-      const selectedQuestions = selectQuestions(allQuestions, config.questionPool, config.questionCount);
-      
-      const session: ExamSession = {
-        config,
-        questions: selectedQuestions,
-        userAnswers: {},
-        startTime: getCurrentTimestamp(),
-        isCompleted: false
-      };
-
-      setExamSession(session);
-      setLoading(false);
+      const selectedQuestions = selectQuestions(allQuestions, session.questionPool, session.questionCount);
+      setQuestions(selectedQuestions);
 
       // Initialize timer
-      const timer = createTimer(
-        config.timeLimit,
-        (state) => setTimerState(state),
-        () => handleSubmitExam()
-      );
-      
+      const timer = createTimer(session.timeLimit, (state) => {
+        setTimerState(state);
+      }, () => {
+        handleSubmitExam();
+      });
+
+      setTimerState(timer.getState());
       timer.start();
+
+      setLoading(false);
     } catch (error) {
       console.error('Error initializing exam:', error);
+      alert('Có lỗi xảy ra khi khởi tạo bài thi');
       router.push('/');
     }
   };
 
-  const handleAnswerChange = (answerId: number, isChecked: boolean) => {
-    if (!examSession) return;
-
-    const currentQuestion = examSession.questions[currentQuestionIndex];
-    const currentAnswers = examSession.userAnswers[currentQuestion.id] || [];
-
-    let newAnswers;
-    if (isChecked) {
-      newAnswers = [...currentAnswers, answerId];
-    } else {
-      newAnswers = currentAnswers.filter(id => id !== answerId);
-    }
-
-    setExamSession({
-      ...examSession,
-      userAnswers: {
-        ...examSession.userAnswers,
-        [currentQuestion.id]: newAnswers
+  const handleAnswerChange = useCallback((questionId: number, answerId: number, isSelected: boolean) => {
+    setUserAnswers(prev => {
+      const currentAnswers = prev[questionId] || [];
+      let newAnswers;
+      
+      if (isSelected) {
+        newAnswers = [...currentAnswers, answerId];
+      } else {
+        newAnswers = currentAnswers.filter(id => id !== answerId);
       }
+      
+      return {
+        ...prev,
+        [questionId]: newAnswers
+      };
     });
+  }, []);
+
+  const handleSubmitExam = async () => {
+    if (submitting) return;
+    
+    setSubmitting(true);
+    
+    try {
+      if (!examSession) return;
+
+      // Convert user answers to the format expected by the API
+      const answers = Object.entries(userAnswers).map(([questionId, answerIds]) => ({
+        questionId: parseInt(questionId),
+        answerIds
+      }));
+
+      const response = await fetch(`/api/exam/sessions/${examSession.id}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ answers })
+      });
+
+      if (response.ok) {
+        const { session } = await response.json();
+        // Store result in sessionStorage for the result page
+        sessionStorage.setItem('examResult', JSON.stringify(session));
+        sessionStorage.removeItem('examSessionId');
+        router.push('/result');
+      } else {
+        alert('Có lỗi xảy ra khi nộp bài thi');
+      }
+    } catch (error) {
+      console.error('Error submitting exam:', error);
+      alert('Có lỗi xảy ra khi nộp bài thi');
+    } finally {
+      setSubmitting(false);
+    }
   };
-
-  const handleSubmitExam = useCallback(() => {
-    if (!examSession) return;
-
-    // Calculate results and save to localStorage
-    examSession.questions.forEach(question => {
-      const userAnswers = examSession.userAnswers[question.id] || [];
-      const correctAnswers = question.answers.filter(answer => answer.correct).map(answer => answer.id);
-      
-      // Check if user's answers match correct answers
-      const isCorrect = userAnswers.length === correctAnswers.length &&
-        userAnswers.every(answerId => correctAnswers.includes(answerId));
-      
-      saveUserAnswer(examSession.config.questionPool, question.id, isCorrect);
-    });
-
-    // Mark exam as completed
-    const completedSession = {
-      ...examSession,
-      endTime: getCurrentTimestamp(),
-      isCompleted: true
-    };
-
-    sessionStorage.setItem('examResults', JSON.stringify(completedSession));
-    router.push('/result');
-  }, [examSession, router]);
 
   const goToQuestion = (index: number) => {
     setCurrentQuestionIndex(index);
   };
 
   const goToNextQuestion = () => {
-    if (examSession && currentQuestionIndex < examSession.questions.length - 1) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
   };
@@ -132,12 +165,6 @@ export default function ExamPage() {
     }
   };
 
-  const getQuestionStatus = (questionId: number) => {
-    if (!examSession) return 'unanswered';
-    const answers = examSession.userAnswers[questionId];
-    return answers && answers.length > 0 ? 'answered' : 'unanswered';
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -146,14 +173,14 @@ export default function ExamPage() {
     );
   }
 
-  if (!examSession) {
+  if (!examSession || questions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Không tìm thấy bài thi</h2>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Không tìm thấy bài thi</h1>
           <button
             onClick={() => router.push('/')}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Quay về trang chủ
           </button>
@@ -162,33 +189,27 @@ export default function ExamPage() {
     );
   }
 
-  const currentQuestion = examSession.questions[currentQuestionIndex];
-  const userAnswers = examSession.userAnswers[currentQuestion.id] || [];
+  const currentQuestion = questions[currentQuestionIndex];
+  const currentAnswers = userAnswers[currentQuestion.id] || [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-40" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-      }}></div>
-      
-      {/* Header with Timer */}
-      <div className="relative z-10 bg-white/80 backdrop-blur-sm shadow-lg border-b border-white/20">
-        <div className="max-w-6xl mx-auto px-4 py-6">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                Bài thi: {examSession.config.questionPool}
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Câu {currentQuestionIndex + 1} / {examSession.questions.length}
+              <h1 className="text-xl font-bold text-gray-800">Bài thi: {examSession.questionPool}</h1>
+              <p className="text-sm text-gray-600">
+                Câu {currentQuestionIndex + 1} / {questions.length}
               </p>
             </div>
             
-            <div className={`text-3xl font-bold px-6 py-3 rounded-2xl transition-all duration-300 shadow-lg ${
+            {/* Timer */}
+            <div className={`text-2xl font-bold px-4 py-2 rounded-lg transition-all duration-300 ${
               timerState.isWarning 
-                ? 'bg-gradient-to-r from-red-500 to-red-600 text-white animate-pulse shadow-red-200' 
-                : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-green-200'
+                ? 'bg-red-100 text-red-700 border-2 border-red-300' 
+                : 'bg-green-100 text-green-700 border-2 border-green-300'
             }`}>
               {formatTime(timerState.timeLeft)}
             </div>
@@ -196,67 +217,62 @@ export default function ExamPage() {
         </div>
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-2 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Question Navigation */}
-          <div className="lg:col-span-1 max-h-[calc(100vh-10rem)] overflow-y-auto">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-2 sticky top-4">
-              <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span className="text-lg">📋</span>
-                Danh sách câu hỏi
-              </h3>
-              <div className="grid grid-cols-5 lg:grid-cols-3 gap-3">
-                {examSession.questions.map((question, index) => (
-                  <button
-                    key={question.id}
-                    onClick={() => goToQuestion(index)}
-                    className={`w-12 h-12 rounded-xl text-sm font-bold transition-all duration-300 transform hover:scale-110 ${
-                      index === currentQuestionIndex
-                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200'
-                        : getQuestionStatus(question.id) === 'answered'
-                        ? 'bg-gradient-to-br from-green-100 to-green-200 text-green-700 border-2 border-green-300 hover:from-green-200 hover:to-green-300'
-                        : 'bg-gradient-to-br from-red-100 to-red-200 text-red-700 border-2 border-red-300 hover:from-red-200 hover:to-red-300'
-                    }`}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-lg p-6 sticky top-8">
+              <h3 className="font-semibold text-gray-800 mb-4">Danh sách câu hỏi</h3>
+              <div className="grid grid-cols-5 lg:grid-cols-3 gap-2">
+                {questions.map((question, index) => {
+                  const isAnswered = userAnswers[question.id] && userAnswers[question.id].length > 0;
+                  const isCurrent = index === currentQuestionIndex;
+                  
+                  return (
+                    <button
+                      key={question.id}
+                      onClick={() => goToQuestion(index)}
+                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isCurrent
+                          ? 'bg-blue-600 text-white shadow-lg transform scale-110'
+                          : isAnswered
+                          ? 'bg-green-100 text-green-700 border-2 border-green-300 hover:bg-green-200'
+                          : 'bg-gray-100 text-gray-600 border-2 border-gray-300 hover:bg-gray-200'
+                      }`}
+                    >
+                      {index + 1}
+                    </button>
+                  );
+                })}
               </div>
               
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <div className="flex items-center gap-3 text-sm mb-2">
-                  <div className="w-4 h-4 bg-gradient-to-br from-green-400 to-green-500 rounded-full shadow-sm"></div>
-                  <span className="text-gray-600 font-medium">Đã làm</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-4 h-4 bg-gradient-to-br from-red-400 to-red-500 rounded-full shadow-sm"></div>
-                  <span className="text-gray-600 font-medium">Chưa làm</span>
-                </div>
+              <div className="mt-6 pt-4 border-t">
+                <button
+                  onClick={handleSubmitExam}
+                  disabled={submitting}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 px-4 rounded-xl font-semibold hover:from-red-700 hover:to-red-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? 'Đang nộp bài...' : 'Nộp bài thi'}
+                </button>
               </div>
             </div>
           </div>
 
           {/* Question Content */}
           <div className="lg:col-span-3">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-2">
+            <div className="bg-white rounded-xl shadow-lg p-8">
               <div className="mb-8">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                    {currentQuestionIndex + 1}
-                  </div>
-                <div className="flex items-center gap-3 mb-6">
-
-                  <h2 className="text-xl font-bold text-gray-800 leading-relaxed">
-                    {currentQuestion.content}
-                  </h2>
-                </div>
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">
+                  Câu {currentQuestionIndex + 1}: {currentQuestion.content}
+                </h2>
                 
                 <div className="space-y-4">
                   {currentQuestion.answers.map((answer) => {
-                    const isSelected = userAnswers.includes(answer.id);
+                    const isSelected = currentAnswers.includes(answer.id);
                     return (
                       <div
                         key={answer.id}
-                        onClick={() => handleAnswerChange(answer.id, !isSelected)}
+                        onClick={() => handleAnswerChange(currentQuestion.id, answer.id, !isSelected)}
                         className={`flex items-start gap-4 p-4 rounded-xl cursor-pointer transition-all duration-300 group ${
                           isSelected
                             ? 'bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-400 shadow-lg'
@@ -276,37 +292,22 @@ export default function ExamPage() {
                 </div>
               </div>
 
-              {/* Navigation Buttons */}
-              <div className="flex justify-between items-center pt-8 border-t border-gray-200">
+              {/* Navigation */}
+              <div className="flex justify-between items-center pt-6 border-t">
                 <button
                   onClick={goToPreviousQuestion}
                   disabled={currentQuestionIndex === 0}
-                  className="px-6 py-3 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-xl hover:from-gray-300 hover:to-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100"
+                  className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="flex items-center gap-2">
-                    <span>←</span>
-                  </span>
+                  Câu trước
                 </button>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleSubmitExam}
-                    className="px-8 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl hover:from-orange-600 hover:to-red-600 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-                  >
-                    <span className="flex items-center gap-2">
-                      Nộp bài
-                    </span>
-                  </button>
-                </div>
-
+                
                 <button
                   onClick={goToNextQuestion}
-                  disabled={currentQuestionIndex === examSession.questions.length - 1}
-                  className="px-6 py-3 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-xl hover:from-gray-300 hover:to-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100"
+                  disabled={currentQuestionIndex === questions.length - 1}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="flex items-center gap-2">
-                    <span>→</span>
-                  </span>
+                  Câu tiếp theo
                 </button>
               </div>
             </div>

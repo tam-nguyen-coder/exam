@@ -24,15 +24,31 @@ const AVAILABLE_QUESTION_POOLS = [
 export const loadQuestionPools = async (): Promise<QuestionPool[]> => {
     const pools: QuestionPool[] = [];
 
+    // Detect server vs client
+    const isServer = typeof window === 'undefined';
+
     for (const poolName of AVAILABLE_QUESTION_POOLS) {
         try {
-            const response = await fetch(`/question-pool/${poolName}.json`);
-            if (!response.ok) {
-                console.warn(`Could not load question pool: ${poolName}`);
-                continue;
+            let questions: any[] | null = null;
+
+            if (isServer) {
+                // Server: read from filesystem under public/question-pool
+                const fs = await import('fs/promises');
+                const path = await import('path');
+                const filePath = path.join(process.cwd(), 'public', 'question-pool', `${poolName}.json`);
+                const content = await fs.readFile(filePath, 'utf-8');
+                questions = JSON.parse(content);
+            } else {
+                // Client: fetch via relative path
+                const response = await fetch(`/question-pool/${poolName}.json`);
+                if (!response.ok) {
+                    console.warn(`Could not load question pool: ${poolName}`);
+                    continue;
+                }
+                questions = await response.json();
             }
 
-            const questions = await response.json();
+            if (!questions) continue;
 
             pools.push({
                 name: poolName,
