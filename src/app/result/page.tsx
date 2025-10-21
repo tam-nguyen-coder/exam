@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { QuestionDto } from '@/dto/question-dto';
-import { useAuth } from '@/contexts/AuthContext';
+import { QuestionDto } from '@/dto/question-dto'
+import { useAuth } from '@/contexts/AuthContext'
+import { loadQuestionPools } from '@/utils/question-pool-loader'
 
 interface ExamSession {
   id: string;
@@ -58,20 +59,15 @@ export default function ResultPage() {
       const session: ExamSession = JSON.parse(resultData);
       setExamSession(session);
 
-      // Load questions from the pool
-      const questionsResponse = await fetch(`/question-pool/${session.questionPool}.json`);
-      if (!questionsResponse.ok) {
-        throw new Error('Failed to load questions');
+      // Load questions from the pool via API so IDs match database records
+      const questionPools = await loadQuestionPools()
+      const pool = questionPools.find(p => p.filename === session.questionPool)
+
+      if (!pool) {
+        throw new Error('Failed to load questions')
       }
-      const rawQuestions = await questionsResponse.json();
-      const allQuestions: QuestionDto[] = rawQuestions.map((question: any) => ({
-        ...question,
-        id: String(question.id),
-        answers: question.answers.map((answer: any) => ({
-          ...answer,
-          id: String(answer.id)
-        }))
-      }));
+
+      const allQuestions: QuestionDto[] = pool.questions
 
       // Create question results
       const results: QuestionResult[] = session.answers.map(userAnswer => {

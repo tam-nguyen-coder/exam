@@ -1,33 +1,28 @@
-import { QuestionDto, QuestionStats, UserAnswer } from '@/dto/question-dto';
-import { getUserAnswers } from './storage';
+import { QuestionDto, QuestionStats } from '@/dto/question-dto'
+import { getUserAnswers } from './storage'
+import { loadQuestionPools } from './question-pool-loader'
 
 export const getQuestionStats = async (questionPool: string): Promise<QuestionStats[]> => {
     try {
-        // Load questions from the pool
-        const response = await fetch(`/question-pool/${questionPool}.json`);
-        if (!response.ok) {
-            throw new Error(`Could not load question pool: ${questionPool}`);
+        // Load questions from the pool via API to preserve database IDs
+        const pools = await loadQuestionPools()
+        const pool = pools.find(p => p.filename === questionPool)
+
+        if (!pool) {
+            throw new Error(`Could not load question pool: ${questionPool}`)
         }
 
-        const rawQuestions = await response.json();
-        const questions: QuestionDto[] = rawQuestions.map((question: any) => ({
-            ...question,
-            id: String(question.id),
-            answers: question.answers.map((answer: any) => ({
-                ...answer,
-                id: String(answer.id)
-            }))
-        }));
-        const userAnswers = getUserAnswers(questionPool);
+        const questions: QuestionDto[] = pool.questions
+        const userAnswers = getUserAnswers(questionPool)
 
         const stats: QuestionStats[] = questions.map(question => {
-            const userAnswer = userAnswers.find(ua => String(ua.questionId) === question.id);
+            const userAnswer = userAnswers.find(ua => String(ua.questionId) === question.id)
 
-            const countTrue = userAnswer?.countTrue || 0;
-            const countFalse = userAnswer?.countFalse || 0;
-            const totalAttempts = countTrue + countFalse;
-            const accuracy = totalAttempts > 0 ? Math.round((countTrue / totalAttempts) * 100) : 0;
-            const score = countTrue - countFalse;
+            const countTrue = userAnswer?.countTrue || 0
+            const countFalse = userAnswer?.countFalse || 0
+            const totalAttempts = countTrue + countFalse
+            const accuracy = totalAttempts > 0 ? Math.round((countTrue / totalAttempts) * 100) : 0
+            const score = countTrue - countFalse
 
             return {
                 question,
@@ -36,36 +31,36 @@ export const getQuestionStats = async (questionPool: string): Promise<QuestionSt
                 totalAttempts,
                 accuracy,
                 score
-            };
-        });
+            }
+        })
 
         // Sort by score (worst first) then by total attempts
         return stats.sort((a, b) => {
-            if (a.score !== b.score) return a.score - b.score;
-            return b.totalAttempts - a.totalAttempts;
-        });
+            if (a.score !== b.score) return a.score - b.score
+            return b.totalAttempts - a.totalAttempts
+        })
 
     } catch (error) {
-        console.error('Error getting question stats:', error);
-        return [];
+        console.error('Error getting question stats:', error)
+        return []
     }
-};
+}
 
 export const getOverallStats = (stats: QuestionStats[]) => {
-    const totalQuestions = stats.length;
-    const attemptedQuestions = stats.filter(s => s.totalAttempts > 0).length;
-    const totalAttempts = stats.reduce((sum, s) => sum + s.totalAttempts, 0);
-    const totalCorrect = stats.reduce((sum, s) => sum + s.countTrue, 0);
-    const totalIncorrect = stats.reduce((sum, s) => sum + s.countFalse, 0);
-    const overallAccuracy = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0;
+    const totalQuestions = stats.length
+    const attemptedQuestions = stats.filter(s => s.totalAttempts > 0).length
+    const totalAttempts = stats.reduce((sum, s) => sum + s.totalAttempts, 0)
+    const totalCorrect = stats.reduce((sum, s) => sum + s.countTrue, 0)
+    const totalIncorrect = stats.reduce((sum, s) => sum + s.countFalse, 0)
+    const overallAccuracy = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0
 
     // Find questions with worst performance
     const worstQuestions = stats
         .filter(s => s.totalAttempts > 0 && s.score < 0)
-        .slice(0, 5);
+        .slice(0, 5)
 
     // Find questions never attempted
-    const neverAttempted = stats.filter(s => s.totalAttempts === 0);
+    const neverAttempted = stats.filter(s => s.totalAttempts === 0)
 
     return {
         totalQuestions,
@@ -76,5 +71,5 @@ export const getOverallStats = (stats: QuestionStats[]) => {
         overallAccuracy,
         worstQuestions,
         neverAttempted
-    };
-};
+    }
+}

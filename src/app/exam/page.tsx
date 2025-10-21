@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { QuestionDto } from '@/dto/question-dto';
-import { selectQuestions } from '@/utils/question-selection';
-import { createTimer, formatTime, TimerState } from '@/utils/timer';
-import { getCurrentTimestamp } from '@/utils/random';
-import { useAuth } from '@/contexts/AuthContext';
+import { QuestionDto } from '@/dto/question-dto'
+import { selectQuestions } from '@/utils/question-selection'
+import { createTimer, formatTime, TimerState } from '@/utils/timer'
+import { getCurrentTimestamp } from '@/utils/random'
+import { useAuth } from '@/contexts/AuthContext'
+import { loadQuestionPools } from '@/utils/question-pool-loader'
 
 interface ExamSession {
   id: string;
@@ -62,20 +63,15 @@ export default function ExamPage() {
       const { session } = await response.json();
       setExamSession(session);
 
-      // Load questions from the selected pool
-      const questionsResponse = await fetch(`/question-pool/${session.questionPool}.json`);
-      if (!questionsResponse.ok) {
-        throw new Error(`Failed to load questions: ${questionsResponse.statusText}`);
+      // Load questions for the selected pool via API to use database IDs
+      const questionPools = await loadQuestionPools()
+      const pool = questionPools.find(p => p.filename === session.questionPool)
+
+      if (!pool) {
+        throw new Error('Failed to load question pool')
       }
-      const rawQuestions = await questionsResponse.json();
-      const allQuestions: QuestionDto[] = rawQuestions.map((question: any) => ({
-        ...question,
-        id: String(question.id),
-        answers: question.answers.map((answer: any) => ({
-          ...answer,
-          id: String(answer.id)
-        }))
-      }));
+
+      const allQuestions: QuestionDto[] = pool.questions
       
       // Select questions using the algorithm
       const selectedQuestions = selectQuestions(allQuestions, session.questionPool, session.questionCount);
