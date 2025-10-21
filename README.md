@@ -97,7 +97,7 @@ src/
 ## 🔧 Tùy chỉnh
 
 ### Thêm bộ câu hỏi mới
-1. Tạo file JSON trong `public/question-pool/`
+1. Tạo file JSON trong `data/question-pool/`
 2. Cập nhật logic load trong `src/app/page.tsx`
 
 ### Thay đổi thuật toán ưu tiên

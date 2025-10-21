@@ -41,7 +41,7 @@ const AVAILABLE_QUESTION_POOLS = [
 
 async function loadQuestionPoolFromFile(poolName: string): Promise<QuestionPoolData | null> {
     try {
-        const filePath = path.join(process.cwd(), 'public', 'question-pool', `${poolName}.json`);
+        const filePath = path.join(process.cwd(), 'data', 'question-pool', `${poolName}.json`);
         const content = await fs.readFile(filePath, 'utf-8');
         const questions = JSON.parse(content);
 

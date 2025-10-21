@@ -144,5 +144,5 @@ Khi người dùng vào trang web thì sẽ có một số tuỳ chọn sau:
 
 ## Seeding Data
 - Tạo script để seed các bộ câu hỏi từ JSON files hiện có vào database
-- Script sẽ đọc tất cả JSON files trong thư mục `public/question-pool/` và import vào database
+- Script sẽ đọc tất cả JSON files trong thư mục `data/question-pool/` và import vào database
 - Hỗ trợ thêm bộ câu hỏi mới thông qua seeding script
