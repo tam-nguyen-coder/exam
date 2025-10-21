@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function GET() {
     const hasDatabaseUrl = !!process.env.DATABASE_URL;
     const hasJwtSecret = !!process.env.JWT_SECRET;
-    
+
     return NextResponse.json({
         hasDatabaseUrl,
         hasJwtSecret,

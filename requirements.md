@@ -1,9 +1,9 @@
 Tôi muốn xây dựng một ứng dụng web cho phép người dùng có thể thi thử các bài thi từ kho câu hỏi có sẵn.
 Ứng dụng sẽ sử dụng PostgreSQL database để lưu trữ dữ liệu và có hệ thống xác thực người dùng.
-Các câu hỏi được lưu dưới dạng JSON ở thư mục question-pool, mỗi file sẽ là một bộ câu hỏi.
+Các câu hỏi được lưu trực tiếp trong database, mỗi bộ câu hỏi (question pool) sẽ có nhiều câu hỏi (questions) và mỗi câu hỏi có nhiều đáp án (answers).
 Khi người dùng vào trang web thì sẽ có một số tuỳ chọn sau:
-1. Chọn bộ câu hỏi, cho phép user chọn bộ câu hỏi muốn thi thử, hãy lấy tên file JSON làm label.
-2. Chọn số lượng câu hỏi mỗi bài thi, default là tổng số câu hỏi trong file.
+1. Chọn bộ câu hỏi, cho phép user chọn bộ câu hỏi muốn thi thử từ danh sách có sẵn trong database.
+2. Chọn số lượng câu hỏi mỗi bài thi, default là tổng số câu hỏi trong bộ câu hỏi đã chọn.
 3. Chọn thời gian làm bài tính bằng phút, default là số phút bằng số lượng câu hỏi.
 4. Hệ thống xác thực người dùng:
    - Đăng ký/Đăng nhập với email và mật khẩu
@@ -41,10 +41,32 @@ Khi người dùng vào trang web thì sẽ có một số tuỳ chọn sau:
 - created_at
 - updated_at
 
+### Bảng question_pools
+- id (PRIMARY KEY)
+- name (UNIQUE) - tên bộ câu hỏi
+- description - mô tả bộ câu hỏi
+- created_at
+- updated_at
+
+### Bảng questions
+- id (PRIMARY KEY)
+- question_pool_id (FOREIGN KEY)
+- content - nội dung câu hỏi
+- explanation - giải thích đáp án
+- created_at
+- updated_at
+
+### Bảng answers
+- id (PRIMARY KEY)
+- question_id (FOREIGN KEY)
+- content - nội dung đáp án
+- is_correct - đáp án đúng hay sai
+- created_at
+
 ### Bảng exam_sessions
 - id (PRIMARY KEY)
 - user_id (FOREIGN KEY)
-- question_pool
+- question_pool_id (FOREIGN KEY)
 - question_count
 - time_limit
 - start_time
@@ -56,16 +78,15 @@ Khi người dùng vào trang web thì sẽ có một số tuỳ chọn sau:
 ### Bảng user_answers
 - id (PRIMARY KEY)
 - exam_session_id (FOREIGN KEY)
-- question_id
-- answer_ids (JSON array)
+- question_id (FOREIGN KEY)
+- answer_ids (JSON array) - các ID đáp án đã chọn
 - is_correct
 - created_at
 
 ### Bảng question_stats
 - id (PRIMARY KEY)
 - user_id (FOREIGN KEY)
-- question_pool
-- question_id
+- question_id (FOREIGN KEY)
 - count_true
 - count_false
 - last_attempted_at
@@ -79,6 +100,11 @@ Khi người dùng vào trang web thì sẽ có một số tuỳ chọn sau:
 - POST /api/auth/login - Đăng nhập
 - POST /api/auth/logout - Đăng xuất
 - GET /api/auth/me - Lấy thông tin user hiện tại
+
+### Question Pool Management
+- GET /api/question-pools - Lấy danh sách bộ câu hỏi
+- GET /api/question-pools/[id] - Lấy chi tiết bộ câu hỏi
+- GET /api/question-pools/[id]/questions - Lấy câu hỏi của bộ câu hỏi
 
 ### Exam Management
 - GET /api/exam/sessions - Lấy danh sách lần thi của user
@@ -113,9 +139,10 @@ Khi người dùng vào trang web thì sẽ có một số tuỳ chọn sau:
 4. Deploy tự động
 
 ### Environment Variables cần thiết:
-- `DATABASE_HOST`
-- `DATABASE_USERNAME`
-- `DATABASE_PASSWORD`
-- `DATABASE_NAME`
-- `DATABASE_PORT`
-- `JWT_SECRET`
+- `DATABASE_URL` - Connection string cho PostgreSQL database
+- `JWT_SECRET` - Secret key cho JWT authentication
+
+## Seeding Data
+- Tạo script để seed các bộ câu hỏi từ JSON files hiện có vào database
+- Script sẽ đọc tất cả JSON files trong thư mục `public/question-pool/` và import vào database
+- Hỗ trợ thêm bộ câu hỏi mới thông qua seeding script

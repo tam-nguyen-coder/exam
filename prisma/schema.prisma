@@ -25,21 +25,66 @@ model User {
   @@map("users")
 }
 
-model ExamSession {
+model QuestionPool {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  questions    Question[]
+  examSessions ExamSession[]
+
+  @@map("question_pools")
+}
+
+model Question {
   id             String   @id @default(cuid())
+  questionPoolId String
+  content        String
+  explanation    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  questionPool QuestionPool @relation(fields: [questionPoolId], references: [id], onDelete: Cascade)
+  answers      Answer[]
+  userAnswers  UserAnswer[]
+  questionStats QuestionStats[]
+
+  @@map("questions")
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  questionId String
+  content    String
+  isCorrect  Boolean
+  createdAt  DateTime @default(now())
+
+  // Relations
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("answers")
+}
+
+model ExamSession {
+  id             String       @id @default(cuid())
   userId         String
-  questionPool   String
+  questionPoolId String
   questionCount  Int
-  timeLimit      Int      // in minutes
+  timeLimit      Int          // in minutes
   startTime      DateTime
   endTime        DateTime?
   score          Int?
   totalQuestions Int?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime     @default(now())
 
   // Relations
-  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  answers  UserAnswer[]
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionPool QuestionPool @relation(fields: [questionPoolId], references: [id])
+  answers      UserAnswer[]
 
   @@map("exam_sessions")
 }
@@ -47,13 +92,14 @@ model ExamSession {
 model UserAnswer {
   id             String   @id @default(cuid())
   examSessionId  String
-  questionId     Int
-  answerIds      Int[]    // JSON array of selected answer IDs
+  questionId     String
+  answerIds      String[]  // JSON array of selected answer IDs
   isCorrect      Boolean
   createdAt      DateTime @default(now())
 
   // Relations
   examSession ExamSession @relation(fields: [examSessionId], references: [id], onDelete: Cascade)
+  question    Question    @relation(fields: [questionId], references: [id])
 
   @@map("user_answers")
 }
@@ -61,8 +107,7 @@ model UserAnswer {
 model QuestionStats {
   id               String   @id @default(cuid())
   userId           String
-  questionPool     String
-  questionId       Int
+  questionId       String
   countTrue        Int      @default(0)
   countFalse       Int      @default(0)
   lastAttemptedAt  DateTime?
@@ -70,9 +115,10 @@ model QuestionStats {
   updatedAt        DateTime @updatedAt
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id])
 
   // Composite unique index
-  @@unique([userId, questionPool, questionId])
+  @@unique([userId, questionId])
   @@map("question_stats")
 }
