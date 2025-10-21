@@ -1,18 +1,18 @@
 export interface QuestionDto {
-    id: number;
+    id: string;
     content: string;
     answers: AnswerDto[];
     reason?: string;
 }
 
 export interface AnswerDto {
-    id: number;
+    id: string;
     content: string;
     correct: boolean;
 }
 
 export interface UserAnswer {
-    questionId: number;
+    questionId: string;
     countTrue: number;
     countFalse: number;
 }
@@ -26,7 +26,7 @@ export interface ExamConfig {
 export interface ExamSession {
     config: ExamConfig;
     questions: QuestionDto[];
-    userAnswers: { [questionId: number]: number[] }; // questionId -> selected answer IDs
+    userAnswers: { [questionId: string]: string[] }; // questionId -> selected answer IDs
     startTime: number;
     endTime?: number;
     isCompleted: boolean;

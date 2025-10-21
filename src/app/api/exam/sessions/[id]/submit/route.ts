@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authenticateRequest } from '@/lib/middleware'
-import { loadQuestionPools } from '@/utils/question-pool-loader'
 
 export async function POST(
     request: NextRequest,
@@ -24,6 +23,17 @@ export async function POST(
             where: {
                 id,
                 userId: user.id
+            },
+            include: {
+                questionPool: {
+                    include: {
+                        questions: {
+                            include: {
+                                answers: true
+                            }
+                        }
+                    }
+                }
             }
         })
 
@@ -41,13 +51,21 @@ export async function POST(
             )
         }
 
-        // Load question pool to validate answers
-        const questionPools = await loadQuestionPools()
-        const pool = questionPools.find(p => p.filename === session.questionPool)
-
-        if (!pool) {
+        if (!session.questionPool) {
             return NextResponse.json(
                 { error: 'Question pool not found' },
+                { status: 404 }
+            )
+        }
+
+        // Build a quick lookup map for questions in the pool
+        const questionLookup = new Map(
+            session.questionPool.questions.map(question => [question.id, question])
+        )
+
+        if (questionLookup.size === 0) {
+            return NextResponse.json(
+                { error: 'Question pool has no questions' },
                 { status: 404 }
             )
         }
@@ -57,16 +75,25 @@ export async function POST(
 
         // Process each answer
         for (const answer of answers) {
-            const question = pool.questions.find(q => q.id === answer.questionId)
+            const questionId = String(answer.questionId)
+            const selectedAnswerIds = Array.isArray(answer.answerIds)
+                ? answer.answerIds.map((id: string | number) => String(id))
+                : []
+
+            const question = questionLookup.get(questionId)
             if (!question) continue
 
             // Check if answer is correct
             const correctAnswerIds = question.answers
-                .filter(a => a.correct)
+                .filter(a => a.isCorrect)
                 .map(a => a.id)
 
-            const isCorrect = JSON.stringify(answer.answerIds.sort()) ===
-                JSON.stringify(correctAnswerIds.sort())
+            const normalize = (ids: string[]) => Array.from(new Set(ids)).sort()
+            const normalizedSelectedIds = normalize(selectedAnswerIds)
+
+            const isCorrect =
+                JSON.stringify(normalizedSelectedIds) ===
+                JSON.stringify(normalize(correctAnswerIds))
 
             if (isCorrect) score++
 
@@ -74,8 +101,8 @@ export async function POST(
             const userAnswer = await prisma.userAnswer.create({
                 data: {
                     examSessionId: session.id,
-                    questionId: answer.questionId,
-                    answerIds: answer.answerIds,
+                    questionId,
+                    answerIds: normalizedSelectedIds,
                     isCorrect
                 }
             })
@@ -85,10 +112,9 @@ export async function POST(
             // Update question stats
             await prisma.questionStats.upsert({
                 where: {
-                    userId_questionPool_questionId: {
+                    userId_questionId: {
                         userId: user.id,
-                        questionPool: session.questionPool,
-                        questionId: answer.questionId
+                        questionId
                     }
                 },
                 update: {
@@ -98,8 +124,7 @@ export async function POST(
                 },
                 create: {
                     userId: user.id,
-                    questionPool: session.questionPool,
-                    questionId: answer.questionId,
+                    questionId,
                     countTrue: isCorrect ? 1 : 0,
                     countFalse: !isCorrect ? 1 : 0,
                     lastAttemptedAt: new Date()
@@ -116,12 +141,18 @@ export async function POST(
                 totalQuestions: answers.length
             },
             include: {
-                answers: true
+                answers: true,
+                questionPool: true
             }
         })
 
+        const { questionPool, ...sessionData } = updatedSession
+
         return NextResponse.json({
-            session: updatedSession,
+            session: {
+                ...sessionData,
+                questionPool: questionPool?.name ?? session.questionPool?.name ?? ''
+            },
             score,
             totalQuestions: answers.length
         })

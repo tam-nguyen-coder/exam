@@ -22,7 +22,8 @@ export async function GET(
                 userId: user.id
             },
             include: {
-                answers: true
+                answers: true,
+                questionPool: true
             }
         })
 
@@ -33,7 +34,14 @@ export async function GET(
             )
         }
 
-        return NextResponse.json({ session })
+        const { questionPool, ...sessionData } = session
+
+        return NextResponse.json({
+            session: {
+                ...sessionData,
+                questionPool: questionPool?.name ?? ''
+            }
+        })
 
     } catch (error) {
         console.error('Get session error:', error)

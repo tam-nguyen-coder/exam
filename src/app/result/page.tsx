@@ -19,15 +19,15 @@ interface ExamSession {
 
 interface UserAnswer {
   id: string;
-  questionId: number;
-  answerIds: number[];
+  questionId: string;
+  answerIds: string[];
   isCorrect: boolean;
 }
 
 interface QuestionResult {
   question: QuestionDto;
-  userAnswers: number[];
-  correctAnswers: number[];
+  userAnswers: string[];
+  correctAnswers: string[];
   isCorrect: boolean;
 }
 
@@ -63,7 +63,15 @@ export default function ResultPage() {
       if (!questionsResponse.ok) {
         throw new Error('Failed to load questions');
       }
-      const allQuestions: QuestionDto[] = await questionsResponse.json();
+      const rawQuestions = await questionsResponse.json();
+      const allQuestions: QuestionDto[] = rawQuestions.map((question: any) => ({
+        ...question,
+        id: String(question.id),
+        answers: question.answers.map((answer: any) => ({
+          ...answer,
+          id: String(answer.id)
+        }))
+      }));
 
       // Create question results
       const results: QuestionResult[] = session.answers.map(userAnswer => {

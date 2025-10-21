@@ -23,7 +23,7 @@ export default function ExamPage() {
   const [examSession, setExamSession] = useState<ExamSession | null>(null);
   const [questions, setQuestions] = useState<QuestionDto[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<Record<number, number[]>>({});
+  const [userAnswers, setUserAnswers] = useState<Record<string, string[]>>({});
   const [timerState, setTimerState] = useState<TimerState>({
     timeLeft: 0,
     isRunning: false,
@@ -67,7 +67,15 @@ export default function ExamPage() {
       if (!questionsResponse.ok) {
         throw new Error(`Failed to load questions: ${questionsResponse.statusText}`);
       }
-      const allQuestions: QuestionDto[] = await questionsResponse.json();
+      const rawQuestions = await questionsResponse.json();
+      const allQuestions: QuestionDto[] = rawQuestions.map((question: any) => ({
+        ...question,
+        id: String(question.id),
+        answers: question.answers.map((answer: any) => ({
+          ...answer,
+          id: String(answer.id)
+        }))
+      }));
       
       // Select questions using the algorithm
       const selectedQuestions = selectQuestions(allQuestions, session.questionPool, session.questionCount);
@@ -91,13 +99,13 @@ export default function ExamPage() {
     }
   };
 
-  const handleAnswerChange = useCallback((questionId: number, answerId: number, isSelected: boolean) => {
+  const handleAnswerChange = useCallback((questionId: string, answerId: string, isSelected: boolean) => {
     setUserAnswers(prev => {
       const currentAnswers = prev[questionId] || [];
       let newAnswers;
       
       if (isSelected) {
-        newAnswers = [...currentAnswers, answerId];
+        newAnswers = Array.from(new Set([...currentAnswers, answerId]));
       } else {
         newAnswers = currentAnswers.filter(id => id !== answerId);
       }
@@ -119,7 +127,7 @@ export default function ExamPage() {
 
       // Convert user answers to the format expected by the API
       const answers = Object.entries(userAnswers).map(([questionId, answerIds]) => ({
-        questionId: parseInt(questionId),
+        questionId,
         answerIds
       }));
 

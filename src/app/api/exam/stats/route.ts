@@ -23,11 +23,24 @@ export async function GET(request: NextRequest) {
             )
         }
 
+        const pool = await prisma.questionPool.findUnique({
+            where: { name: questionPool }
+        })
+
+        if (!pool) {
+            return NextResponse.json(
+                { error: 'Question pool not found' },
+                { status: 404 }
+            )
+        }
+
         // Get question stats
         const questionStats = await prisma.questionStats.findMany({
             where: {
                 userId: user.id,
-                questionPool
+                question: {
+                    questionPoolId: pool.id
+                }
             },
             orderBy: {
                 questionId: 'asc'
@@ -44,11 +57,16 @@ export async function GET(request: NextRequest) {
         const sessions = await prisma.examSession.findMany({
             where: {
                 userId: user.id,
-                questionPool,
+                questionPoolId: pool.id,
                 endTime: { not: null }
             },
             orderBy: { createdAt: 'desc' }
         })
+
+        const sessionResponses = sessions.map(session => ({
+            ...session,
+            questionPool: pool.name
+        }))
 
         return NextResponse.json({
             questionStats,
@@ -59,7 +77,7 @@ export async function GET(request: NextRequest) {
                 accuracy: Math.round(accuracy * 100) / 100,
                 totalSessions: sessions.length
             },
-            sessions
+            sessions: sessionResponses
         })
 
     } catch (error) {

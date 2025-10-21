@@ -11,7 +11,7 @@ interface StatsModalProps {
 
 interface StatsData {
   questionStats: Array<{
-    questionId: number;
+    questionId: string;
     countTrue: number;
     countFalse: number;
   }>;

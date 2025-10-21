@@ -16,11 +16,17 @@ export async function GET(request: NextRequest) {
             where: { userId: user.id },
             orderBy: { createdAt: 'desc' },
             include: {
-                answers: true
+                answers: true,
+                questionPool: true
             }
         })
 
-        return NextResponse.json({ sessions })
+        const sessionResponses = sessions.map(({ questionPool, ...sessionData }) => ({
+            ...sessionData,
+            questionPool: questionPool?.name ?? ''
+        }))
+
+        return NextResponse.json({ sessions: sessionResponses })
 
     } catch (error) {
         console.error('Get sessions error:', error)
@@ -50,17 +56,38 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        const pool = await prisma.questionPool.findUnique({
+            where: { name: questionPool }
+        })
+
+        if (!pool) {
+            return NextResponse.json(
+                { error: 'Question pool not found' },
+                { status: 404 }
+            )
+        }
+
         const session = await prisma.examSession.create({
             data: {
                 userId: user.id,
-                questionPool,
+                questionPoolId: pool.id,
                 questionCount,
                 timeLimit,
                 startTime: new Date()
+            },
+            include: {
+                questionPool: true
             }
         })
 
-        return NextResponse.json({ session })
+        const { questionPool: createdPool, ...sessionData } = session
+
+        return NextResponse.json({
+            session: {
+                ...sessionData,
+                questionPool: createdPool?.name ?? pool.name
+            }
+        })
 
     } catch (error) {
         console.error('Create session error:', error)

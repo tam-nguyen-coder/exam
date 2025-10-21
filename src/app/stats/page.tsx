@@ -7,7 +7,7 @@ import { loadQuestionPools } from '@/utils/question-pool-loader';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface QuestionStats {
-  questionId: number;
+  questionId: string;
   countTrue: number;
   countFalse: number;
   lastAttemptedAt?: string;
@@ -100,7 +100,7 @@ export default function StatsPage() {
     await loadStats(poolFilename);
   };
 
-  const getQuestionContent = (questionId: number) => {
+  const getQuestionContent = (questionId: string) => {
     const pool = questionPools.find(p => p.filename === selectedPool);
     if (!pool) return null;
     return pool.questions.find(q => q.id === questionId);

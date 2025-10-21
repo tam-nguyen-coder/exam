@@ -9,11 +9,19 @@ export const getQuestionStats = async (questionPool: string): Promise<QuestionSt
             throw new Error(`Could not load question pool: ${questionPool}`);
         }
 
-        const questions: QuestionDto[] = await response.json();
+        const rawQuestions = await response.json();
+        const questions: QuestionDto[] = rawQuestions.map((question: any) => ({
+            ...question,
+            id: String(question.id),
+            answers: question.answers.map((answer: any) => ({
+                ...answer,
+                id: String(answer.id)
+            }))
+        }));
         const userAnswers = getUserAnswers(questionPool);
 
         const stats: QuestionStats[] = questions.map(question => {
-            const userAnswer = userAnswers.find(ua => ua.questionId === question.id);
+            const userAnswer = userAnswers.find(ua => String(ua.questionId) === question.id);
 
             const countTrue = userAnswer?.countTrue || 0;
             const countFalse = userAnswer?.countFalse || 0;
