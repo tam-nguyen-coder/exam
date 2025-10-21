@@ -24,19 +24,19 @@ interface QuestionPoolData {
 const AVAILABLE_QUESTION_POOLS = [
     // 'demo',
     'scrum-master-1',
-    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-01',
-    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-02',
-    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-03',
-    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-04',
-    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-05',
-    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-06',
-    'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-07',
-    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-01',
-    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-02',
-    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-03',
-    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-04',
-    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-05',
-    'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-06',
+    // 'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-01',
+    // 'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-02',
+    // 'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-03',
+    // 'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-04',
+    // 'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-05',
+    // 'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-06',
+    // 'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-07',
+    // 'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-01',
+    // 'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-02',
+    // 'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-03',
+    // 'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-04',
+    // 'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-05',
+    // 'AWS-Certified-Cloud-Practitioner-CLF-C02-chunk-06',
 ];
 
 async function loadQuestionPoolFromFile(poolName: string): Promise<QuestionPoolData | null> {
@@ -90,7 +90,7 @@ async function seedQuestionPool(poolData: QuestionPoolData) {
 
         // Create answers for this question
         for (const answerData of questionData.answers) {
-            prisma.answer.create({
+            await prisma.answer.create({
                 data: {
                     questionId: question.id,
                     content: answerData.content,
