@@ -80,6 +80,7 @@ model ExamSession {
   score          Int?
   totalQuestions Int?
   createdAt      DateTime     @default(now())
+  questionIds    String[]     @default([])
 
   // Relations
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)

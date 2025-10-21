@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { QuestionPool } from '@/dto/question-dto';
 import { loadQuestionPools } from '@/utils/question-pool-loader';
 import { useAuth } from '@/contexts/AuthContext';
+import { computeQuestionScore } from '@/utils/question-score';
 
 interface QuestionStats {
   questionId: string;
@@ -271,7 +272,7 @@ export default function StatsPage() {
 
                 const totalAttempts = stat.countTrue + stat.countFalse;
                 const accuracy = totalAttempts > 0 ? (stat.countTrue / totalAttempts) * 100 : 0;
-                const score = stat.countTrue - stat.countFalse;
+                      const score = computeQuestionScore(stat.countTrue, stat.countFalse);
 
                 return (
                   <div

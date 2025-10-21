@@ -22,8 +22,8 @@ interface QuestionPoolData {
 
 // List of available question pools
 const AVAILABLE_QUESTION_POOLS = [
+    // 'demo',
     'scrum-master-1',
-    'demo',
     'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-01',
     'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-02',
     'AWS-Certified-Solutions-Architect-Associate-SAA-C03-chunk-03',
@@ -90,7 +90,7 @@ async function seedQuestionPool(poolData: QuestionPoolData) {
 
         // Create answers for this question
         for (const answerData of questionData.answers) {
-            await prisma.answer.create({
+            prisma.answer.create({
                 data: {
                     questionId: question.id,
                     content: answerData.content,
@@ -108,8 +108,20 @@ async function seedQuestionPool(poolData: QuestionPoolData) {
 async function main() {
     console.log('Starting question pool seeding...');
 
+    const cliPools = process.argv.slice(2);
+    const poolsToSeed = cliPools.length > 0
+        ? AVAILABLE_QUESTION_POOLS.filter(pool => cliPools.includes(pool))
+        : AVAILABLE_QUESTION_POOLS;
+
+    if (cliPools.length > 0) {
+        const missing = cliPools.filter(pool => !AVAILABLE_QUESTION_POOLS.includes(pool));
+        if (missing.length > 0) {
+            console.warn(`Warning: unknown pools skipped: ${missing.join(', ')}`);
+        }
+    }
+
     try {
-        for (const poolName of AVAILABLE_QUESTION_POOLS) {
+        for (const poolName of poolsToSeed) {
             const poolData = await loadQuestionPoolFromFile(poolName);
             if (poolData) {
                 await seedQuestionPool(poolData);

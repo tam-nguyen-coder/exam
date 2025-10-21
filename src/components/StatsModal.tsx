@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { computeQuestionScore } from '@/utils/question-score';
 
 interface StatsModalProps {
   isOpen: boolean;
@@ -157,15 +158,15 @@ export default function StatsModal({ isOpen, onClose, questionPool }: StatsModal
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {stats.questionStats
                     .sort((a, b) => {
-                      const aScore = a.countTrue - a.countFalse;
-                      const bScore = b.countTrue - b.countFalse;
+                      const aScore = computeQuestionScore(a.countTrue, a.countFalse);
+                      const bScore = computeQuestionScore(b.countTrue, b.countFalse);
                       return aScore - bScore; // Sort by worst performance first
                     })
                     .slice(0, 10)
                     .map((stat) => {
                       const totalAttempts = stat.countTrue + stat.countFalse;
                       const accuracy = totalAttempts > 0 ? (stat.countTrue / totalAttempts) * 100 : 0;
-                      const score = stat.countTrue - stat.countFalse;
+                      const score = computeQuestionScore(stat.countTrue, stat.countFalse);
 
                       return (
                         <div

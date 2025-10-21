@@ -1,6 +1,7 @@
 import { QuestionDto, QuestionStats } from '@/dto/question-dto'
 import { getUserAnswers } from './storage'
 import { loadQuestionPools } from './question-pool-loader'
+import { computeQuestionScore } from './question-score'
 
 export const getQuestionStats = async (questionPool: string): Promise<QuestionStats[]> => {
     try {
@@ -22,7 +23,7 @@ export const getQuestionStats = async (questionPool: string): Promise<QuestionSt
             const countFalse = userAnswer?.countFalse || 0
             const totalAttempts = countTrue + countFalse
             const accuracy = totalAttempts > 0 ? Math.round((countTrue / totalAttempts) * 100) : 0
-            const score = countTrue - countFalse
+            const score = computeQuestionScore(countTrue, countFalse)
 
             return {
                 question,

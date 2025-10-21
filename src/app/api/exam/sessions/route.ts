@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authenticateRequest } from '@/lib/middleware'
+import { computeQuestionScore } from '@/utils/question-score'
 
 export async function GET(request: NextRequest) {
     try {
@@ -67,13 +68,77 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        const poolQuestions = await prisma.question.findMany({
+            where: { questionPoolId: pool.id },
+            select: {
+                id: true,
+                questionStats: {
+                    where: { userId: user.id },
+                    select: {
+                        countTrue: true,
+                        countFalse: true
+                    },
+                    take: 1
+                }
+            }
+        })
+
+        if (poolQuestions.length === 0) {
+            return NextResponse.json(
+                { error: 'Question pool has no questions' },
+                { status: 400 }
+            )
+        }
+
+        const weightedQuestions = poolQuestions.map(question => {
+            const stats = question.questionStats[0]
+            const hasStats = Boolean(stats)
+            const score = hasStats
+                ? computeQuestionScore(stats.countTrue, stats.countFalse)
+                : Number.NEGATIVE_INFINITY
+
+            return {
+                id: question.id,
+                hasStats,
+                score,
+                random: Math.random()
+            }
+        })
+
+        weightedQuestions.sort((a, b) => {
+            if (a.hasStats !== b.hasStats) {
+                return a.hasStats ? 1 : -1
+            }
+
+            if (a.score !== b.score) {
+                return a.score - b.score
+            }
+
+            return a.random - b.random
+        })
+
+        const availableCount = weightedQuestions.length
+        const limitedQuestionCount = Math.min(questionCount, availableCount)
+
+        if (limitedQuestionCount <= 0) {
+            return NextResponse.json(
+                { error: 'Invalid question count' },
+                { status: 400 }
+            )
+        }
+
+        const selectedQuestionIds = weightedQuestions
+            .slice(0, limitedQuestionCount)
+            .map(q => q.id)
+
         const session = await prisma.examSession.create({
             data: {
                 userId: user.id,
                 questionPoolId: pool.id,
-                questionCount,
+                questionCount: limitedQuestionCount,
                 timeLimit,
-                startTime: new Date()
+                startTime: new Date(),
+                questionIds: selectedQuestionIds
             },
             include: {
                 questionPool: true

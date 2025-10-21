@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { QuestionDto } from '@/dto/question-dto'
-import { selectQuestions } from '@/utils/question-selection'
 import { createTimer, formatTime, TimerState } from '@/utils/timer'
 import { getCurrentTimestamp } from '@/utils/random'
 import { useAuth } from '@/contexts/AuthContext'
@@ -16,6 +15,7 @@ interface ExamSession {
   timeLimit: number;
   startTime: string;
   endTime?: string;
+  questionIds: string[];
 }
 
 export default function ExamPage() {
@@ -61,6 +61,11 @@ export default function ExamPage() {
       }
 
       const { session } = await response.json();
+
+      if (!session.questionIds || session.questionIds.length === 0) {
+        throw new Error('Exam session missing question selection');
+      }
+
       setExamSession(session);
 
       // Load questions for the selected pool via API to use database IDs
@@ -72,9 +77,24 @@ export default function ExamPage() {
       }
 
       const allQuestions: QuestionDto[] = pool.questions
-      
-      // Select questions using the algorithm
-      const selectedQuestions = selectQuestions(allQuestions, session.questionPool, session.questionCount);
+
+      const selectedQuestions = session.questionIds
+        .map((questionId: string) => allQuestions.find(q => q.id === questionId))
+        .filter(
+          (question: QuestionDto | undefined): question is QuestionDto =>
+            Boolean(question)
+        )
+
+      if (selectedQuestions.length < session.questionIds.length) {
+        const missingCount = session.questionIds.length - selectedQuestions.length
+        const fallbackPool = allQuestions.filter(question => !session.questionIds.includes(question.id))
+        selectedQuestions.push(...fallbackPool.slice(0, missingCount))
+      }
+
+      if (selectedQuestions.length === 0) {
+        throw new Error('Could not resolve selected questions for exam session')
+      }
+
       setQuestions(selectedQuestions);
 
       // Initialize timer

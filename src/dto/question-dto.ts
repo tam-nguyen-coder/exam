@@ -44,5 +44,5 @@ export interface QuestionStats {
     countFalse: number;
     totalAttempts: number;
     accuracy: number; // percentage
-    score: number; // countTrue - countFalse
+    score: number; // weighted priority score (configurable coefficients)
 }

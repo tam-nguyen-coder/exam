@@ -17,7 +17,12 @@ Khi người dùng vào trang web thì sẽ có một số tuỳ chọn sau:
    - Bảng user_answers: lưu câu trả lời chi tiết của từng câu hỏi
    - Bảng question_stats: thống kê hiệu suất của user với từng câu hỏi
    Mỗi lần làm bài thì sẽ cập nhật lại vào database, nếu làm đúng thì tăng countTrue, làm sai thì tăng countFalse.
-6. Khi tạo bài test, các câu hỏi sẽ là ngẫu nhiên trong bộ câu hỏi, nhưng phải tạo ra thuật toán để ưu tiên các câu chưa làm và câu làm sai nhiều lần được tính dựa trên hiệu của countTrue và countFalse, nếu hiệu là số Âm thì nên ưu tiên hiện các câu đó trong bài thi.
+6. Khi tạo bài test, các câu hỏi sẽ là ngẫu nhiên trong bộ câu hỏi, nhưng phải tạo ra thuật toán để ưu tiên các câu chưa làm và câu làm sai nhiều lần. Thuật toán cần tính điểm ưu tiên (score) theo công thức:
+   - `score = (count_true * correct_weight) - (count_false * incorrect_weight)`
+   - Các hệ số `correct_weight` và `incorrect_weight` được cấu hình qua environment variables (`QUESTION_SCORE_WEIGHT_CORRECT`, `QUESTION_SCORE_WEIGHT_INCORRECT`), nếu không khai báo sẽ dùng giá trị mặc định `1.0` và `2.0`
+   - Các câu hỏi có `score` thấp hơn (đặc biệt là âm) phải được ưu tiên xuất hiện trước
+   - Các câu chưa từng làm (count_true = count_false = 0) vẫn cần được đưa vào để đảm bảo user làm hết câu hỏi trong pool
+   - Thuật toán cần bảo đảm trải đều câu hỏi và tái xuất hiện những câu đã sai nhiều lần để hỗ trợ việc học hiệu quả hơn
 
 7. Sau khi làm bài thi thì sẽ có thể preview lại các câu đã làm và kết quả.
 
@@ -123,18 +128,8 @@ Khi người dùng vào trang web thì sẽ có một số tuỳ chọn sau:
 
 ## Deployment với Vercel
 
-### Ưu điểm của Vercel:
-- ✅ Tích hợp native với Next.js
-- ✅ Hỗ trợ đầy đủ Prisma + Neon PostgreSQL
-- ✅ Setup đơn giản, không cần cấu hình phức tạp
-- ✅ Serverless Functions và Edge Functions
-- ✅ Tích hợp sẵn với Neon từ Vercel Marketplace
-- ✅ Hỗ trợ tất cả tính năng Next.js 15
-- ✅ Auto-deployment từ GitHub
-
 ### Quy trình triển khai:
 1. Kết nối GitHub repository với Vercel
-2. Thêm Neon database từ Vercel Marketplace
 3. Cấu hình environment variables
 4. Deploy tự động
 

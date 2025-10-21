@@ -1,4 +1,5 @@
 import { UserAnswer } from '@/dto/question-dto';
+import { computeQuestionScore } from './question-score';
 
 const STORAGE_PREFIX = 'exam_results_';
 
@@ -38,7 +39,7 @@ export const getQuestionScore = (questionPool: string, questionId: string): numb
 
     if (!answer) return 0; // Chưa làm bao giờ
 
-    return answer.countTrue - answer.countFalse;
+    return computeQuestionScore(answer.countTrue, answer.countFalse);
 };
 
 export const clearUserAnswers = (questionPool: string) => {

@@ -16,6 +16,7 @@ interface ExamSession {
   score: number;
   totalQuestions: number;
   answers: UserAnswer[];
+  questionIds?: string[];
 }
 
 interface UserAnswer {
