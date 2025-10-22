@@ -92,29 +92,22 @@ export async function POST(request: NextRequest) {
 
         const weightedQuestions = poolQuestions.map(question => {
             const stats = question.questionStats[0]
-            const hasStats = Boolean(stats)
+            const hasStats = question.questionStats && question.questionStats.length > 0;
             const score = hasStats
                 ? computeQuestionScore(stats.countTrue, stats.countFalse)
                 : 0 // Default score for questions that have never been attempted
+
 
             return {
                 id: question.id,
                 hasStats,
                 score,
-                random: Math.random()
             }
         })
 
+
         weightedQuestions.sort((a, b) => {
-            if (a.hasStats !== b.hasStats) {
-                return a.hasStats ? 1 : -1
-            }
-
-            if (a.score !== b.score) {
-                return a.score - b.score
-            }
-
-            return a.random - b.random
+            return a.score - b.score
         })
 
         const availableCount = weightedQuestions.length
@@ -133,8 +126,8 @@ export async function POST(request: NextRequest) {
 
         const session = await prisma.examSession.create({
             data: {
-                userId: user.id,
-                questionPoolId: pool.id,
+                userId: user!.id,
+                questionPoolId: pool!.id,
                 questionCount: limitedQuestionCount,
                 timeLimit,
                 startTime: new Date(),
@@ -150,7 +143,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             session: {
                 ...sessionData,
-                questionPool: createdPool?.name ?? pool.name
+                questionPool: createdPool?.name ?? pool!.name
             }
         })
 

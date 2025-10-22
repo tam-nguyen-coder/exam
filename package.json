@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:debug": "NODE_OPTIONS='--inspect' next start",
+    "dev:debug": "NODE_OPTIONS='--inspect' next dev",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",

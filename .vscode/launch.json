@@ -1,0 +1,28 @@
+{
+  "configurations": [
+    {
+      "type": "node-terminal",
+      "name": "Debug Dev Server",
+      "request": "launch",
+      "command": "npm run dev:debug",
+      "cwd": "${workspaceFolder}/"
+    },
+    {
+      "type": "node-terminal",
+      "name": "Debug Production Server",
+      "request": "launch",
+      "command": "npm run start:debug",
+      "cwd": "${workspaceFolder}/"
+    },
+    {
+      "type": "node",
+      "name": "Debug Next.js",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/next",
+      "args": ["dev"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}
