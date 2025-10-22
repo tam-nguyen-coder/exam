@@ -1,5 +1,5 @@
 const DEFAULT_CORRECT_WEIGHT = 1
-const DEFAULT_INCORRECT_WEIGHT = 2
+const DEFAULT_INCORRECT_WEIGHT = 3
 
 const parseWeight = (value: string | undefined, fallback: number): number => {
     if (!value) {
@@ -50,6 +50,6 @@ export const computeQuestionScore = (
     countTrue: number,
     countFalse: number
 ): number => {
-    const { correctWeight, incorrectWeight } = getQuestionScoreWeights()
-    return (countTrue * correctWeight) - (countFalse * incorrectWeight)
+    // const { correctWeight, incorrectWeight } = getQuestionScoreWeights()
+    return (countTrue * DEFAULT_CORRECT_WEIGHT) - (countFalse * DEFAULT_INCORRECT_WEIGHT)
 }

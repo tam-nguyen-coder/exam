@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
             const hasStats = Boolean(stats)
             const score = hasStats
                 ? computeQuestionScore(stats.countTrue, stats.countFalse)
-                : -0.5 // Default score for questions that have never been attempted
+                : 0 // Default score for questions that have never been attempted
 
             return {
                 id: question.id,
