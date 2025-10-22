@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { QuestionDto } from '@/dto/question-dto'
 import { useAuth } from '@/contexts/AuthContext'
-import { loadQuestionPools } from '@/utils/question-pool-loader'
+import { loadQuestionPool } from '@/utils/question-pool-loader'
 
 interface ExamSession {
   id: string;
@@ -61,8 +61,7 @@ export default function ResultPage() {
       setExamSession(session);
 
       // Load questions from the pool via API so IDs match database records
-      const questionPools = await loadQuestionPools()
-      const pool = questionPools.find(p => p.filename === session.questionPool)
+      const pool = await loadQuestionPool(session.questionPool)
 
       if (!pool) {
         throw new Error('Failed to load questions')

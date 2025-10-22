@@ -2,17 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ExamConfig, QuestionPool } from '@/dto/question-dto';
+import { QuestionPoolSummary } from '@/dto/question-dto';
 import StatsModal from '@/components/StatsModal';
 import LoginModal from '@/components/LoginModal';
 import RegisterModal from '@/components/RegisterModal';
-import { loadQuestionPools } from '@/utils/question-pool-loader';
+import { loadQuestionPoolSummaries } from '@/utils/question-pool-loader';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const router = useRouter();
   const { user, token, loading: authLoading } = useAuth();
-  const [questionPools, setQuestionPools] = useState<QuestionPool[]>([]);
+  const [questionPools, setQuestionPools] = useState<QuestionPoolSummary[]>([]);
   const [selectedPool, setSelectedPool] = useState<string>('');
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [timeLimit, setTimeLimit] = useState<number>(15);
@@ -27,12 +27,12 @@ export default function Home() {
 
   const loadQuestionPoolsData = async () => {
     try {
-      const pools = await loadQuestionPools();
+      const pools = await loadQuestionPoolSummaries();
       
       if (pools.length > 0) {
         setQuestionPools(pools);
         setSelectedPool(pools[0].filename);
-        setQuestionCount(Math.min(10, pools[0].questions.length));
+        setQuestionCount(Math.min(10, pools[0].questionCount));
         setTimeLimit(15);
       } else {
         console.error('No question pools found');
@@ -160,7 +160,7 @@ export default function Home() {
                       const newPool = e.target.value;
                       setSelectedPool(newPool);
                       const pool = questionPools.find(p => p.filename === newPool);
-                      const poolSize = pool ? pool.questions.length : 0;
+                      const poolSize = pool ? pool.questionCount : 0;
                       setQuestionCount(Math.min(10, poolSize));
                       setTimeLimit(15);
                     }}
@@ -179,7 +179,7 @@ export default function Home() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Bộ đề hiện có: {questionPools.find(p => p.filename === selectedPool)?.questions.length || 0} câu hỏi
+                  Bộ đề hiện có: {questionPools.find(p => p.filename === selectedPool)?.questionCount || 0} câu hỏi
                 </p>
               </div>
 
@@ -192,11 +192,11 @@ export default function Home() {
                 <input
                   type="number"
                   min="1"
-                  max={questionPools.find(p => p.filename === selectedPool)?.questions.length || 0}
+                  max={questionPools.find(p => p.filename === selectedPool)?.questionCount || 0}
                   value={questionCount}
                   onChange={(e) => {
                     const val = parseInt(e.target.value) || 0;
-                    const max = questionPools.find(p => p.filename === selectedPool)?.questions.length || 0;
+                    const max = questionPools.find(p => p.filename === selectedPool)?.questionCount || 0;
                     const clamped = Math.max(1, Math.min(max, val));
                     setQuestionCount(clamped);
                   }}
@@ -205,7 +205,7 @@ export default function Home() {
                 />
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-                  Tối đa: {questionPools.find(p => p.filename === selectedPool)?.questions.length || 0} câu
+                  Tối đa: {questionPools.find(p => p.filename === selectedPool)?.questionCount || 0} câu
                 </p>
               </div>
 

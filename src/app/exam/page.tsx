@@ -6,7 +6,7 @@ import { QuestionDto } from '@/dto/question-dto'
 import { createTimer, formatTime, TimerState } from '@/utils/timer'
 import { getCurrentTimestamp } from '@/utils/random'
 import { useAuth } from '@/contexts/AuthContext'
-import { loadQuestionPools } from '@/utils/question-pool-loader'
+import { loadQuestionPool } from '@/utils/question-pool-loader'
 
 interface ExamSession {
   id: string;
@@ -69,8 +69,7 @@ export default function ExamPage() {
       setExamSession(session);
 
       // Load questions for the selected pool via API to use database IDs
-      const questionPools = await loadQuestionPools()
-      const pool = questionPools.find(p => p.filename === session.questionPool)
+      const pool = await loadQuestionPool(session.questionPool)
 
       if (!pool) {
         throw new Error('Failed to load question pool')

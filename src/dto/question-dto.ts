@@ -38,6 +38,12 @@ export interface QuestionPool {
     questions: QuestionDto[];
 }
 
+export interface QuestionPoolSummary {
+    name: string;
+    filename: string;
+    questionCount: number;
+}
+
 export interface QuestionStats {
     question: QuestionDto;
     countTrue: number;

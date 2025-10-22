@@ -1,13 +1,12 @@
 import { QuestionDto, QuestionStats } from '@/dto/question-dto'
 import { getUserAnswers } from './storage'
-import { loadQuestionPools } from './question-pool-loader'
+import { loadQuestionPool } from './question-pool-loader'
 import { computeQuestionScore } from './question-score'
 
 export const getQuestionStats = async (questionPool: string): Promise<QuestionStats[]> => {
     try {
         // Load questions from the pool via API to preserve database IDs
-        const pools = await loadQuestionPools()
-        const pool = pools.find(p => p.filename === questionPool)
+        const pool = await loadQuestionPool(questionPool)
 
         if (!pool) {
             throw new Error(`Could not load question pool: ${questionPool}`)

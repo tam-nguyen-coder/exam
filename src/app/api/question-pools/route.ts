@@ -1,13 +1,22 @@
 import { NextResponse } from 'next/server'
-import { loadQuestionPoolsServer } from '@/utils/question-pool-loader'
+import {
+    loadQuestionPoolSummariesServer,
+    loadQuestionPoolsServer
+} from '@/utils/question-pool-loader'
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const questionPools = await loadQuestionPoolsServer()
+        const { searchParams } = new URL(request.url)
+        const detail = searchParams.get('detail')
+        const includeQuestions = detail === '1' || detail === 'true'
 
-        return NextResponse.json({
-            questionPools
-        })
+        if (includeQuestions) {
+            const questionPools = await loadQuestionPoolsServer()
+            return NextResponse.json({ questionPools })
+        }
+
+        const questionPools = await loadQuestionPoolSummariesServer()
+        return NextResponse.json({ questionPools })
     } catch (error) {
         console.error('Error loading question pools:', error)
         return NextResponse.json(

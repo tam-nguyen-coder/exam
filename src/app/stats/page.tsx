@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { QuestionPool } from '@/dto/question-dto';
-import { loadQuestionPools } from '@/utils/question-pool-loader';
+import { QuestionDto, QuestionPoolSummary } from '@/dto/question-dto';
+import { loadQuestionPool, loadQuestionPoolSummaries } from '@/utils/question-pool-loader';
 import { useAuth } from '@/contexts/AuthContext';
 import { computeQuestionScore } from '@/utils/question-score';
 
@@ -33,13 +33,14 @@ interface ExamSession {
 export default function StatsPage() {
   const router = useRouter();
   const { user, token } = useAuth();
-  const [questionPools, setQuestionPools] = useState<QuestionPool[]>([]);
+  const [questionPools, setQuestionPools] = useState<QuestionPoolSummary[]>([]);
   const [selectedPool, setSelectedPool] = useState<string>('');
   const [questionStats, setQuestionStats] = useState<QuestionStats[]>([]);
   const [overallStats, setOverallStats] = useState<OverallStats | null>(null);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
+  const [poolQuestions, setPoolQuestions] = useState<Record<string, QuestionDto[]>>({});
 
   useEffect(() => {
     if (!user || !token) {
@@ -51,7 +52,7 @@ export default function StatsPage() {
 
   const loadQuestionPoolsData = async () => {
     try {
-      const pools = await loadQuestionPools();
+      const pools = await loadQuestionPoolSummaries();
       setQuestionPools(pools);
       if (pools.length > 0) {
         setSelectedPool(pools[0].filename);
@@ -64,28 +65,59 @@ export default function StatsPage() {
     }
   };
 
+  const fetchPoolQuestions = async (poolFilename: string) => {
+    if (!poolFilename) return [];
+
+    const cached = poolQuestions[poolFilename];
+    if (cached && cached.length > 0) {
+      return cached;
+    }
+
+    try {
+      const pool = await loadQuestionPool(poolFilename);
+      if (pool) {
+        setPoolQuestions((prev) => {
+          if (prev[poolFilename]) {
+            return prev;
+          }
+          return {
+            ...prev,
+            [poolFilename]: pool.questions,
+          };
+        });
+        return pool.questions;
+      }
+    } catch (error) {
+      console.error('Error loading question pool:', error);
+    }
+
+    return [];
+  };
+
   const loadStats = async (poolFilename: string) => {
     if (!token) return;
     
     setLoading(true);
     try {
-      const response = await fetch(`/api/exam/stats?questionPool=${poolFilename}`, {
+      const statsPromise = fetch(`/api/exam/stats?questionPool=${poolFilename}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error('Failed to load stats');
+        }
+        return response.json();
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setQuestionStats(data.questionStats);
-        setOverallStats(data.overallStats);
-        setSessions(data.sessions);
-      } else {
-        console.error('Failed to load stats');
-        setQuestionStats([]);
-        setOverallStats(null);
-        setSessions([]);
-      }
+      const [data] = await Promise.all([
+        statsPromise,
+        fetchPoolQuestions(poolFilename)
+      ]);
+
+      setQuestionStats(data.questionStats);
+      setOverallStats(data.overallStats);
+      setSessions(data.sessions);
     } catch (error) {
       console.error('Error loading stats:', error);
       setQuestionStats([]);
@@ -102,9 +134,9 @@ export default function StatsPage() {
   };
 
   const getQuestionContent = (questionId: string) => {
-    const pool = questionPools.find(p => p.filename === selectedPool);
-    if (!pool) return null;
-    return pool.questions.find(q => q.id === questionId);
+    const questions = poolQuestions[selectedPool];
+    if (!questions) return null;
+    return questions.find(q => q.id === questionId);
   };
 
   const getAccuracyColor = (accuracy: number) => {
