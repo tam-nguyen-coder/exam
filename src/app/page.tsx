@@ -15,6 +15,7 @@ export default function Home() {
   const [selectedPool, setSelectedPool] = useState<string>('');
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [timeLimit, setTimeLimit] = useState<number>(15);
+  const [isRandomMode, setIsRandomMode] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [creatingExam, setCreatingExam] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -76,7 +77,8 @@ export default function Home() {
         body: JSON.stringify({
           questionPool: selectedPool,
           questionCount,
-          timeLimit
+          timeLimit,
+          isRandomMode
         })
       });
 
@@ -247,6 +249,25 @@ export default function Home() {
                   className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-300 text-gray-800 placeholder-gray-500"
                   placeholder="Nhập thời gian (phút)"
                 />
+              </div>
+
+              {/* Random Mode Option */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 text-sm font-semibold text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isRandomMode}
+                    onChange={(e) => setIsRandomMode(e.target.checked)}
+                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-lg">🎲</span>
+                  <div>
+                    <div className="font-medium">Tạo ngẫu nhiên</div>
+                    <div className="text-xs text-gray-500 font-normal">
+                      Bỏ qua cơ chế thông minh, chọn câu hỏi ngẫu nhiên từ bộ đề
+                    </div>
+                  </div>
+                </label>
               </div>
 
               {/* Action Buttons */}

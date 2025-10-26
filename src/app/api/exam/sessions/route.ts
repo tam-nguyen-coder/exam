@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const { questionPool, questionCount, timeLimit } = await request.json()
+        const { questionPool, questionCount, timeLimit, isRandomMode = false } = await request.json()
 
         if (!questionPool || !questionCount || !timeLimit) {
             return NextResponse.json(
@@ -90,27 +90,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const weightedQuestions = poolQuestions.map(question => {
-            const stats = question.questionStats[0]
-            const hasStats = question.questionStats && question.questionStats.length > 0;
-            const score = hasStats
-                ? computeQuestionScore(stats.countTrue, stats.countFalse)
-                : 0 // Default score for questions that have never been attempted
-
-
-            return {
-                id: question.id,
-                hasStats,
-                score,
-            }
-        })
-
-
-        weightedQuestions.sort((a, b) => {
-            return a.score - b.score
-        })
-
-        const availableCount = weightedQuestions.length
+        const availableCount = poolQuestions.length
         const limitedQuestionCount = Math.min(questionCount, availableCount)
 
         if (limitedQuestionCount <= 0) {
@@ -120,9 +100,38 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const selectedQuestionIds = weightedQuestions
-            .slice(0, limitedQuestionCount)
-            .map(q => q.id)
+        let selectedQuestionIds: string[]
+
+        if (isRandomMode) {
+            // Random mode: select questions randomly
+            const shuffledQuestions = [...poolQuestions].sort(() => Math.random() - 0.5)
+            selectedQuestionIds = shuffledQuestions
+                .slice(0, limitedQuestionCount)
+                .map(q => q.id)
+        } else {
+            // Smart mode: use question stats for intelligent selection
+            const weightedQuestions = poolQuestions.map(question => {
+                const stats = question.questionStats[0]
+                const hasStats = question.questionStats && question.questionStats.length > 0;
+                const score = hasStats
+                    ? computeQuestionScore(stats.countTrue, stats.countFalse)
+                    : 0 // Default score for questions that have never been attempted
+
+                return {
+                    id: question.id,
+                    hasStats,
+                    score,
+                }
+            })
+
+            weightedQuestions.sort((a, b) => {
+                return a.score - b.score
+            })
+
+            selectedQuestionIds = weightedQuestions
+                .slice(0, limitedQuestionCount)
+                .map(q => q.id)
+        }
 
         const session = await prisma.examSession.create({
             data: {
