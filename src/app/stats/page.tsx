@@ -43,6 +43,8 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
   const [poolQuestions, setPoolQuestions] = useState<Record<string, QuestionDto[]>>({});
+  const [deletingSession, setDeletingSession] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || !token) {
@@ -152,6 +154,40 @@ export default function StatsPage() {
     if (percentage >= 80) return 'text-green-600';
     if (percentage >= 60) return 'text-yellow-600';
     return 'text-red-600';
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!token) return;
+    
+    setDeletingSession(sessionId);
+    try {
+      const response = await fetch(`/api/exam/sessions/${sessionId}/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Remove the session from the list
+        setSessions(prev => prev.filter(session => session.id !== sessionId));
+        
+        // Refresh stats to reflect the changes
+        if (selectedPool) {
+          await loadStats(selectedPool);
+        }
+      } else {
+        const error = await response.json();
+        alert(`Lỗi xóa bài thi: ${error.error || 'Có lỗi xảy ra'}`);
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      alert('Có lỗi xảy ra khi xóa bài thi');
+    } finally {
+      setDeletingSession(null);
+      setShowDeleteConfirm(null);
+    }
   };
 
   if (loading) {
@@ -277,7 +313,7 @@ export default function StatsPage() {
             <div className="space-y-3">
               {sessions.slice(0, 5).map((session) => (
                 <div key={session.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium text-gray-800">
                       {new Date(session.createdAt).toLocaleDateString('vi-VN')}
                     </p>
@@ -285,13 +321,29 @@ export default function StatsPage() {
                       {session.questionPool}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className={`font-bold ${getScoreColor(session.score, session.totalQuestions)}`}>
-                      {session.score}/{session.totalQuestions}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {Math.round((session.score / session.totalQuestions) * 100)}%
-                    </p>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className={`font-bold ${getScoreColor(session.score, session.totalQuestions)}`}>
+                        {session.score}/{session.totalQuestions}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {Math.round((session.score / session.totalQuestions) * 100)}%
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowDeleteConfirm(session.id)}
+                      disabled={deletingSession === session.id}
+                      className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                      title="Xóa bài thi"
+                    >
+                      {deletingSession === session.id ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -300,12 +352,19 @@ export default function StatsPage() {
         )}
 
         {/* Question Details Toggle */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-6 flex items-center gap-4 justify-center">
           <button
             onClick={() => setShowDetails(!showDetails)}
             className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
           >
             {showDetails ? 'Ẩn chi tiết câu hỏi' : 'Xem chi tiết câu hỏi'}
+          </button>
+
+          <button
+            onClick={() => router.push('/')}
+            className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition-colors"
+          >
+            Quay về trang chủ
           </button>
         </div>
 
@@ -379,15 +438,51 @@ export default function StatsPage() {
           </div>
         )}
 
-        {/* Back Button */}
-        <div className="text-center mt-8">
-          <button
-            onClick={() => router.push('/')}
-            className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition-colors"
-          >
-            Quay về trang chủ
-          </button>
-        </div>
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">Xác nhận xóa</h3>
+                  <p className="text-sm text-gray-600">Hành động này không thể hoàn tác</p>
+                </div>
+              </div>
+              
+              <p className="text-gray-700 mb-6">
+                Bạn có chắc chắn muốn xóa bài thi này? Toàn bộ dữ liệu liên quan sẽ bị xóa vĩnh viễn và thống kê sẽ được cập nhật lại.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={() => handleDeleteSession(showDeleteConfirm)}
+                  disabled={deletingSession === showDeleteConfirm}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deletingSession === showDeleteConfirm ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Đang xóa...
+                    </>
+                  ) : (
+                    'Xóa bài thi'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

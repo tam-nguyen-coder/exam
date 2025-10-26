@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const router = useRouter();
-  const { user, token, loading: authLoading } = useAuth();
+  const { user, token, logout, loading: authLoading } = useAuth();
   const [questionPools, setQuestionPools] = useState<QuestionPoolSummary[]>([]);
   const [selectedPool, setSelectedPool] = useState<string>('');
   const [questionCount, setQuestionCount] = useState<number>(10);
@@ -40,6 +40,16 @@ export default function Home() {
       console.error('Error loading question pools:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    // Reset form to default values
+    if (questionPools.length > 0) {
+      setSelectedPool(questionPools[0].filename);
+      setQuestionCount(Math.min(10, questionPools[0].questionCount));
+      setTimeLimit(15);
     }
   };
 
@@ -121,9 +131,20 @@ export default function Home() {
               {/* User Info */}
               {user ? (
                 <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-800 text-sm">
-                    👋 Xin chào, {user.name || user.email}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-green-800 text-sm">
+                      👋 Xin chào, {user.name || user.email}
+                    </p>
+                    <button
+                      onClick={handleLogout}
+                      className="p-1 text-green-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
+                      title="Đăng xuất"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -250,27 +271,29 @@ export default function Home() {
                   </span>
                 </button>
                 
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => router.push('/questions')}
-                    className="flex-1 bg-gradient-to-r from-emerald-500 via-green-600 to-teal-600 text-white py-3 px-4 rounded-xl font-medium hover:from-emerald-600 hover:via-green-700 hover:to-teal-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]"
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <span>📚</span>
-                      <span className="text-sm">Xem câu hỏi</span>
-                    </span>
-                  </button>
-                  
-                  <button
-                    onClick={() => router.push('/stats')}
-                    className="flex-1 bg-gradient-to-r from-purple-500 via-violet-600 to-indigo-600 text-white py-3 px-4 rounded-xl font-medium hover:from-purple-600 hover:via-violet-700 hover:to-indigo-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]"
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <span>📈</span>
-                      <span className="text-sm">Thống kê</span>
-                    </span>
-                  </button>
-                </div>
+                {user && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => router.push('/questions')}
+                      className="flex-1 bg-gradient-to-r from-emerald-500 via-green-600 to-teal-600 text-white py-3 px-4 rounded-xl font-medium hover:from-emerald-600 hover:via-green-700 hover:to-teal-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <span>📚</span>
+                        <span className="text-sm">Xem câu hỏi</span>
+                      </span>
+                    </button>
+                    
+                    <button
+                      onClick={() => router.push('/stats')}
+                      className="flex-1 bg-gradient-to-r from-purple-500 via-violet-600 to-indigo-600 text-white py-3 px-4 rounded-xl font-medium hover:from-purple-600 hover:via-violet-700 hover:to-indigo-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <span>📈</span>
+                        <span className="text-sm">Thống kê</span>
+                      </span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
