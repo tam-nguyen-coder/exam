@@ -250,15 +250,27 @@ export default function Home() {
                   </span>
                 </button>
                 
-                <button
-                  onClick={() => router.push('/stats')}
-                  className="w-full bg-gradient-to-r from-purple-500 via-violet-600 to-indigo-600 text-white py-3 px-4 rounded-xl font-medium hover:from-purple-600 hover:via-violet-700 hover:to-indigo-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]"
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    <span>📈</span>
-                    <span>Thống kê chi tiết</span>
-                  </span>
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => router.push('/questions')}
+                    className="flex-1 bg-gradient-to-r from-emerald-500 via-green-600 to-teal-600 text-white py-3 px-4 rounded-xl font-medium hover:from-emerald-600 hover:via-green-700 hover:to-teal-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <span>📚</span>
+                      <span className="text-sm">Xem câu hỏi</span>
+                    </span>
+                  </button>
+                  
+                  <button
+                    onClick={() => router.push('/stats')}
+                    className="flex-1 bg-gradient-to-r from-purple-500 via-violet-600 to-indigo-600 text-white py-3 px-4 rounded-xl font-medium hover:from-purple-600 hover:via-violet-700 hover:to-indigo-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <span>📈</span>
+                      <span className="text-sm">Thống kê</span>
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
 
