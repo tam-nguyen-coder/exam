@@ -52,3 +52,13 @@ export interface QuestionStats {
     accuracy: number; // percentage
     score: number; // weighted priority score (configurable coefficients)
 }
+
+export interface OverallStats {
+    totalAttempts: number;
+    totalCorrect: number;
+    totalIncorrect: number;
+    accuracy: number;
+    totalSessions: number;
+    uniqueQuestionsEncountered: number;
+    totalQuestionsInPool: number;
+}

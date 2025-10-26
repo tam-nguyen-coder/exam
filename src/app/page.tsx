@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { QuestionPoolSummary } from '@/dto/question-dto';
-import StatsModal from '@/components/StatsModal';
 import LoginModal from '@/components/LoginModal';
 import RegisterModal from '@/components/RegisterModal';
 import { loadQuestionPoolSummaries } from '@/utils/question-pool-loader';
@@ -17,7 +16,7 @@ export default function Home() {
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [timeLimit, setTimeLimit] = useState<number>(15);
   const [loading, setLoading] = useState(true);
-  const [showStats, setShowStats] = useState(false);
+  const [creatingExam, setCreatingExam] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
 
@@ -55,6 +54,7 @@ export default function Home() {
       return;
     }
 
+    setCreatingExam(true);
     try {
       // Create exam session
       const response = await fetch('/api/exam/sessions', {
@@ -76,11 +76,14 @@ export default function Home() {
         sessionStorage.setItem('examSessionId', session.id);
         router.push('/exam');
       } else {
-        alert('Có lỗi xảy ra khi tạo bài thi');
+        const errorData = await response.json();
+        alert(errorData.error || 'Có lỗi xảy ra khi tạo bài thi');
       }
     } catch (error) {
       console.error('Error creating exam session:', error);
       alert('Có lỗi xảy ra khi tạo bài thi');
+    } finally {
+      setCreatingExam(false);
     }
   };
 
@@ -229,35 +232,33 @@ export default function Home() {
               <div className="space-y-3 pt-4">
                 <button
                   onClick={handleStartExam}
-                  className="w-full bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-blue-700 hover:via-blue-800 hover:to-indigo-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                  disabled={creatingExam}
+                  className="w-full bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-blue-700 hover:via-blue-800 hover:to-indigo-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
                   <span className="flex items-center justify-center gap-2">
-                    <span>🚀</span>
-                    Bắt đầu thi
+                    {creatingExam ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Đang tạo bài thi...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🚀</span>
+                        <span>Bắt đầu thi</span>
+                      </>
+                    )}
                   </span>
                 </button>
                 
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowStats(true)}
-                    className="flex-1 bg-gradient-to-r from-emerald-500 via-green-600 to-teal-600 text-white py-3 px-4 rounded-xl font-medium hover:from-emerald-600 hover:via-green-700 hover:to-teal-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]"
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <span>📊</span>
-                      <span className="text-sm">Thống kê nhanh</span>
-                    </span>
-                  </button>
-                  
-                  <button
-                    onClick={() => router.push('/stats')}
-                    className="flex-1 bg-gradient-to-r from-purple-500 via-violet-600 to-indigo-600 text-white py-3 px-4 rounded-xl font-medium hover:from-purple-600 hover:via-violet-700 hover:to-indigo-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]"
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <span>📈</span>
-                      <span className="text-sm">Thống kê chi tiết</span>
-                    </span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => router.push('/stats')}
+                  className="w-full bg-gradient-to-r from-purple-500 via-violet-600 to-indigo-600 text-white py-3 px-4 rounded-xl font-medium hover:from-purple-600 hover:via-violet-700 hover:to-indigo-700 transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <span>📈</span>
+                    <span>Thống kê chi tiết</span>
+                  </span>
+                </button>
               </div>
             </div>
 
@@ -286,12 +287,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Stats Modal */}
-      <StatsModal
-        isOpen={showStats}
-        onClose={() => setShowStats(false)}
-        questionPool={selectedPool}
-      />
 
       {/* Auth Modals */}
       <LoginModal

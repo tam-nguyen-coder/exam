@@ -20,6 +20,8 @@ interface OverallStats {
   totalIncorrect: number;
   accuracy: number;
   totalSessions: number;
+  uniqueQuestionsEncountered: number;
+  totalQuestionsInPool: number;
 }
 
 interface ExamSession {
@@ -201,7 +203,7 @@ export default function StatsPage() {
 
         {/* Overall Stats */}
         {overallStats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-lg p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -248,6 +250,20 @@ export default function StatsPage() {
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                   <span className="text-2xl">📈</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Câu hỏi đã gặp</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {overallStats.uniqueQuestionsEncountered}/{overallStats.totalQuestionsInPool}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <span className="text-2xl">🔍</span>
                 </div>
               </div>
             </div>

@@ -47,11 +47,17 @@ export async function GET(request: NextRequest) {
             }
         })
 
+        // Get total questions in the pool
+        const totalQuestionsInPool = await prisma.question.count({
+            where: { questionPoolId: pool.id }
+        })
+
         // Get overall stats
         const totalAttempts = questionStats.reduce((sum, stat) => sum + stat.countTrue + stat.countFalse, 0)
         const totalCorrect = questionStats.reduce((sum, stat) => sum + stat.countTrue, 0)
         const totalIncorrect = questionStats.reduce((sum, stat) => sum + stat.countFalse, 0)
         const accuracy = totalAttempts > 0 ? (totalCorrect / totalAttempts) * 100 : 0
+        const uniqueQuestionsEncountered = questionStats.length
 
         // Get exam sessions for this pool
         const sessions = await prisma.examSession.findMany({
@@ -75,7 +81,9 @@ export async function GET(request: NextRequest) {
                 totalCorrect,
                 totalIncorrect,
                 accuracy: Math.round(accuracy * 100) / 100,
-                totalSessions: sessions.length
+                totalSessions: sessions.length,
+                uniqueQuestionsEncountered,
+                totalQuestionsInPool
             },
             sessions: sessionResponses
         })
