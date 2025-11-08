@@ -7,6 +7,7 @@ import LoginModal from '@/components/LoginModal';
 import RegisterModal from '@/components/RegisterModal';
 import { loadQuestionPoolSummaries } from '@/utils/question-pool-loader';
 import { useAuth } from '@/contexts/AuthContext';
+import { saveLastSelectedQuestionPool, getLastSelectedQuestionPool } from '@/utils/storage';
 
 export default function Home() {
   const router = useRouter();
@@ -31,8 +32,16 @@ export default function Home() {
       
       if (pools.length > 0) {
         setQuestionPools(pools);
-        setSelectedPool(pools[0].filename);
-        setQuestionCount(Math.min(10, pools[0].questionCount));
+        
+        // Try to load last selected question pool from localStorage
+        const lastSelectedPool = getLastSelectedQuestionPool();
+        const poolToSelect = lastSelectedPool && pools.find(p => p.filename === lastSelectedPool)
+          ? lastSelectedPool
+          : pools[0].filename;
+        
+        setSelectedPool(poolToSelect);
+        const selectedPoolData = pools.find(p => p.filename === poolToSelect) || pools[0];
+        setQuestionCount(Math.min(10, selectedPoolData.questionCount));
         setTimeLimit(15);
       } else {
         console.error('No question pools found');
@@ -64,6 +73,9 @@ export default function Home() {
       alert('Vui lòng điền đầy đủ thông tin');
       return;
     }
+
+    // Save selected pool to localStorage when starting exam
+    saveLastSelectedQuestionPool(selectedPool);
 
     setCreatingExam(true);
     try {
@@ -185,6 +197,8 @@ export default function Home() {
                     onChange={(e) => {
                       const newPool = e.target.value;
                       setSelectedPool(newPool);
+                      // Save selected pool to localStorage
+                      saveLastSelectedQuestionPool(newPool);
                       const pool = questionPools.find(p => p.filename === newPool);
                       const poolSize = pool ? pool.questionCount : 0;
                       setQuestionCount(Math.min(10, poolSize));

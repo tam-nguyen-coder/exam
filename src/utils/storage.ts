@@ -46,3 +46,23 @@ export const clearUserAnswers = (questionPool: string) => {
     const key = `${STORAGE_PREFIX}${questionPool}`;
     localStorage.removeItem(key);
 };
+
+// Question Pool Selection Storage
+const LAST_SELECTED_QUESTION_POOL_KEY = 'last_selected_question_pool';
+
+export const saveLastSelectedQuestionPool = (questionPool: string) => {
+    try {
+        localStorage.setItem(LAST_SELECTED_QUESTION_POOL_KEY, questionPool);
+    } catch (error) {
+        console.error('Error saving last selected question pool:', error);
+    }
+};
+
+export const getLastSelectedQuestionPool = (): string | null => {
+    try {
+        return localStorage.getItem(LAST_SELECTED_QUESTION_POOL_KEY);
+    } catch (error) {
+        console.error('Error reading last selected question pool:', error);
+        return null;
+    }
+};
